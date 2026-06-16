@@ -1,0 +1,1949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vertical Slice Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%232f81f7'/%3E%3Cpath d='M4 8h8M8 4v8' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:      #0d1117;
+  --surface: #161b22;
+  --border:  #21262d;
+  --text:    #c9d1d9;
+  --muted:   #484f58;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  background-image: radial-gradient(circle, #21262d 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ── HEADER ── */
+header {
+  padding: 28px 40px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(13,17,23,0.94);
+  backdrop-filter: blur(6px);
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.header-brand { display: flex; flex-direction: column; gap: 4px; }
+
+.header-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+#project-name {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.02em;
+  background: none;
+  border: none;
+  outline: none;
+  cursor: text;
+  padding: 0;
+  width: 400px;
+  caret-color: #f0a500;
+}
+#project-name::selection { background: rgba(240,165,0,0.3); }
+#project-name:focus { border-bottom: 1px dashed var(--muted); }
+
+.name-accent { color: #f0a500; }
+
+.header-actions { display: flex; gap: 10px; margin-left: auto; align-items: flex-end; }
+
+.hdr-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.hdr-btn:hover { color: var(--text); border-color: var(--muted); }
+.hdr-btn.danger:hover { color: #ff7b72; border-color: #ff7b72; }
+
+.header-meta { display: flex; gap: 24px; flex-wrap: wrap; }
+
+.stat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.stat-val { font-family: var(--mono); font-size: 20px; font-weight: 600; color: #fff; }
+.stat-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* ── LEGEND ── */
+.legend {
+  padding: 10px 40px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.legend-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; white-space: nowrap; }
+.legend-items { display: flex; gap: 18px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; color: var(--text); }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot.todo   { background: var(--muted); }
+.dot.active { background: #58a6ff; box-shadow: 0 0 6px #58a6ff; }
+.dot.done   { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+.hint { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--muted); font-style: italic; }
+
+/* ── PROGRESS ── */
+.progress-section { padding: 18px 40px 24px; }
+.progress-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 7px; }
+.progress-track { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #f0a500, #3fb950, #58a6ff); border-radius: 4px; transition: width 0.4s ease; }
+
+/* ── SLICE BANNER ── */
+.slice-banner {
+  margin: 0 40px 16px;
+  padding: 9px 16px;
+  background: rgba(88,166,255,0.07);
+  border: 1px solid rgba(88,166,255,0.18);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #58a6ff;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  transition: opacity 0.2s;
+}
+.slice-banner.visible { display: flex; }
+.slice-banner strong { color: #fff; }
+
+/* ── METHOD CARDS ── */
+.method-note { margin: 0 40px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.method-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; background: rgba(255,255,255,0.02); }
+.method-card-label { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.method-card-label.bad  { color: #ff7b72; }
+.method-card-label.good { color: #3fb950; }
+.method-card-body { font-family: var(--mono); font-size: 11px; color: var(--muted); line-height: 1.6; }
+.arrow-flow { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; row-gap: 4px; }
+.flow-item { background: rgba(255,255,255,0.04); border-radius: 4px; padding: 2px 7px; font-size: 10px; color: var(--text); white-space: nowrap; }
+.flow-arrow { color: var(--muted); font-size: 10px; }
+
+/* ── MAIN ── */
+.main { padding: 0 40px 60px; overflow-x: auto; }
+.grid-wrap { min-width: 600px; }
+
+/* ── TABLE ── */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.col-layer { width: 178px; }
+.col-pass  { min-width: 190px; }
+.col-add   { width: 72px; }
+
+/* ── PASS HEADERS ── */
+thead tr th { padding: 0; vertical-align: bottom; }
+
+.pass-header {
+  border-radius: 8px 8px 0 0;
+  padding: 13px 14px 11px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  margin: 0 4px;
+  position: relative;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.pass-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 3px;
+}
+
+.pass-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.pass-delete-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.pass-header:hover .pass-delete-btn { opacity: 1; }
+.pass-delete-btn:hover { color: #ff7b72 !important; }
+
+.pass-name-edit {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: none;
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: 0;
+  cursor: text;
+  caret-color: #f0a500;
+}
+.pass-name-edit:focus { border-bottom: 1px dashed rgba(255,255,255,0.2); }
+
+.pass-note-edit {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: 0;
+  cursor: text;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.4;
+  min-height: 28px;
+  caret-color: #f0a500;
+  margin-top: 2px;
+}
+.pass-note-edit:focus { color: var(--text); }
+
+.pass-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-top: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.col-arrow { font-size: 12px; margin-top: 5px; opacity: 0; transition: opacity 0.2s; color: #fff; }
+
+/* ── ADD PASS BUTTON ── */
+.add-pass-col {
+  width: 72px;
+  vertical-align: bottom;
+  padding: 0 0 0 8px;
+}
+
+.add-pass-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--muted);
+  border-radius: 8px 8px 0 0;
+  padding: 10px 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 20px;
+  color: var(--muted);
+  transition: color 0.15s, border-color 0.15s;
+  min-height: 80px;
+  border-bottom: none;
+}
+.add-pass-btn span { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+.add-pass-btn:hover { color: #3fb950; border-color: #3fb950; }
+
+/* ── LAYER HEADER CELL ── */
+.layer-header-cell { vertical-align: middle; padding: 4px 8px 4px 0; }
+
+.layer-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 10px 10px 0;
+  position: relative;
+}
+
+.layer-icon { font-size: 18px; flex-shrink: 0; width: 26px; text-align: center; margin-top: 1px; }
+
+.layer-name-edit, .layer-tech-edit {
+  font-family: var(--mono);
+  background: none;
+  border: none;
+  outline: none;
+  padding: 0;
+  cursor: text;
+  display: block;
+  width: 100%;
+  caret-color: #f0a500;
+}
+.layer-name-edit {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+.layer-tech-edit {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.layer-name-edit:focus, .layer-tech-edit:focus { border-bottom: 1px dashed rgba(255,255,255,0.15); color: var(--text); }
+
+.layer-delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.layer-header:hover .layer-delete-btn { opacity: 1; }
+.layer-delete-btn:hover { color: #ff7b72; }
+
+/* ── CELLS ── */
+td.cell-wrap { padding: 4px; vertical-align: stretch; }
+
+.cell {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 13px;
+  min-height: 115px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+  position: relative;
+  overflow: hidden;
+}
+
+.cell.todo   { background: rgba(255,255,255,0.02); }
+.cell.active { background: rgba(88,166,255,0.07); }
+.cell.done   { background: rgba(63,185,80,0.07); }
+
+.cell.col-hl {
+  box-shadow: 0 0 0 1.5px var(--col-color) inset, 0 4px 18px rgba(0,0,0,0.35);
+  border-color: var(--col-color);
+  z-index: 2;
+}
+
+.cell-status-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 6px 6px 0 0;
+  transition: background 0.2s;
+}
+.cell.todo   .cell-status-bar { background: var(--muted); opacity: 0.25; }
+.cell.active .cell-status-bar { background: #58a6ff; opacity: 1; }
+.cell.done   .cell-status-bar { background: #3fb950; opacity: 1; }
+
+/* Task text / editor */
+.cell-task {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text);
+  line-height: 1.55;
+  flex: 1;
+  cursor: text;
+  min-height: 40px;
+  word-break: break-word;
+}
+.cell-task code {
+  background: rgba(255,255,255,0.07);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 10.5px;
+  color: #e6edf3;
+}
+.cell-task:hover { color: #e6edf3; }
+
+.cell-editor {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: #e6edf3;
+  line-height: 1.55;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  padding: 6px 8px;
+  resize: none;
+  outline: none;
+  flex: 1;
+  min-height: 72px;
+  width: 100%;
+  caret-color: #f0a500;
+}
+.cell-editor:focus { border-color: rgba(240,165,0,0.4); }
+
+.edit-hint {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.cell-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.status-pill {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 2px 9px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s;
+}
+.status-pill:hover { opacity: 0.75; }
+.cell.todo   .status-pill { background: rgba(120,130,150,0.2); color: var(--muted); }
+.cell.active .status-pill { background: rgba(88,166,255,0.2); color: #58a6ff; }
+.cell.done   .status-pill { background: rgba(63,185,80,0.2); color: #3fb950; }
+
+.checkmark { font-size: 13px; opacity: 0; transition: opacity 0.2s; }
+.cell.done .checkmark { opacity: 1; color: #3fb950; }
+
+/* Row left-border accents — using inline style via JS */
+
+/* ── ADD LAYER ROW ── */
+.add-layer-row td { padding: 8px 0 0 0; }
+.add-layer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 7px 14px;
+  border: 1px dashed var(--muted);
+  border-radius: 6px;
+  background: none;
+  transition: color 0.15s, border-color 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.add-layer-btn:hover { color: #3fb950; border-color: #3fb950; }
+
+/* ── SAVE TOAST ── */
+#save-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 28px;
+  background: rgba(30,35,42,0.95);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #3fb950;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 999;
+}
+#save-toast.show { opacity: 1; transform: translateY(0); }
+
+.cell-task-description {
+  margin-bottom: 8px;
+}
+
+.cell-subtasks {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cell-subtasks li {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.task-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── MODAL (confirm delete) ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: #1c2128;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 32px;
+  max-width: 400px;
+  width: 90%;
+}
+.modal h3 { font-family: var(--mono); font-size: 15px; color: #fff; margin-bottom: 10px; }
+.modal p  { font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 22px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.modal-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 7px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: opacity 0.15s;
+}
+.modal-btn:hover { opacity: 0.8; }
+.modal-btn.cancel { background: rgba(255,255,255,0.04); color: var(--muted); }
+.modal-btn.confirm-del { background: rgba(255,123,114,0.15); color: #ff7b72; border-color: rgba(255,123,114,0.3); }
+
+/* ── CORNER ── */
+.corner { background: transparent; border: none; }
+</style>
+</head>
+<body>
+
+<!-- Save Toast -->
+<div id="save-toast">✓ Saved</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Delete Pass?</h3>
+    <p id="modal-body">This will remove the column and all its task data. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn confirm-del" id="modal-confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="header-brand">
+    <div class="header-label">Agent Development Methodology</div>
+    <input id="project-name" type="text" value="My SPA Project" spellcheck="false"
+           oninput="state.projectName = this.value; save()" />
+  </div>
+  <div class="header-meta">
+    <div class="stat"><div class="stat-val" id="stat-done">0</div><div class="stat-label">Done</div></div>
+    <div class="stat"><div class="stat-val" id="stat-active">0</div><div class="stat-label">Active</div></div>
+    <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-label">Total</div></div>
+  </div>
+  <div class="header-actions">
+    <button class="hdr-btn" onclick="exportJSON()">Export JSON</button>
+    <button class="hdr-btn" onclick="importJSON()">Import JSON</button>
+    <button class="hdr-btn danger" onclick="confirmReset()">Reset</button>
+  </div>
+</header>
+
+<!-- ── LEGEND ── -->
+<div class="legend">
+  <div class="legend-label">Status →</div>
+  <div class="legend-items">
+    <div class="legend-item"><div class="dot todo"></div>Todo</div>
+    <div class="legend-item"><div class="dot active"></div>In Progress</div>
+    <div class="legend-item"><div class="dot done"></div>Done</div>
+  </div>
+  <div class="hint">hover col = vertical slice &nbsp;|&nbsp; click task text = edit &nbsp;|&nbsp; click pill = cycle status &nbsp;|&nbsp; click names = edit</div>
+</div>
+
+<!-- ── PROGRESS ── -->
+<div class="progress-section">
+  <div class="progress-label">Overall Progress</div>
+  <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+</div>
+
+<!-- ── SLICE BANNER ── -->
+<div class="slice-banner visible" id="slice-banner">
+  <span>↕</span>
+  <span>Vertical slice — <strong id="slice-name"></strong> — follow this column top-to-bottom through all layers</span>
+</div>
+
+<!-- ── METHOD CARDS ── -->
+<div class="method-note">
+  <div class="method-card">
+    <div class="method-card-label bad">❌ Horizontal (default agent behavior)</div>
+    <div class="method-card-body">
+      <div class="arrow-flow">
+        <span class="flow-item">All HTML</span><span class="flow-arrow">→</span>
+        <span class="flow-item">All JS</span><span class="flow-arrow">→</span>
+        <span class="flow-item">All API</span><span class="flow-arrow">→</span>
+        <span class="flow-item">All DB</span><span class="flow-arrow">→</span>
+        <span class="flow-item" style="color:#ff7b72">Wire &amp; test at the very end</span>
+      </div>
+    </div>
+  </div>
+  <div class="method-card">
+    <div class="method-card-label good">✅ Vertical Slice (this board)</div>
+    <div class="method-card-body">
+      <div class="arrow-flow">
+        <span class="flow-item" style="color:#f0a500">Pass 0</span><span class="flow-arrow">→</span>
+        <span class="flow-item" style="color:#3fb950">Pass 1</span><span class="flow-arrow">→</span>
+        <span class="flow-item" style="color:#58a6ff">Pass 2</span><span class="flow-arrow">→</span>
+        <span class="flow-item" style="color:#bc8cff">Pass N…</span>
+      </div>
+      <div style="margin-top:6px;color:#6e7681;">Each pass = all layers wired &amp; testable in browser</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── GRID ── -->
+<div class="main">
+  <div class="grid-wrap">
+    <table id="grid"></table>
+    <div style="padding: 10px 0 0 4px;">
+      <button class="add-layer-btn" onclick="addLayer()">+ Add Layer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="import-input" accept=".json" style="display:none" onchange="handleImport(event)" />
+
+<script>
+// ─── COLORS ────────────────────────────────────────────────────────────────
+
+const PALETTE = [
+  '#f0a500','#3fb950','#58a6ff','#bc8cff','#ff7b72','#39d0d8',
+  '#ffa657','#79c0ff','#d2a8ff','#7ee787','#f85149','#56d364'
+];
+
+const LAYER_COLORS = [
+  'rgba(240,165,0,0.3)',
+  'rgba(88,166,255,0.3)',
+  'rgba(188,140,255,0.3)',
+  'rgba(63,185,80,0.3)',
+  'rgba(255,123,114,0.3)',
+  'rgba(57,208,216,0.3)'
+];
+
+function passColor(pi)  { return PALETTE[pi % PALETTE.length]; }
+function layerColor(li) { return LAYER_COLORS[li % LAYER_COLORS.length]; }
+
+// ─── DEFAULT STATE ──────────────────────────────────────────────────────────
+
+const DEFAULT_STATE = {
+  "projectName": "Anchor Production Hardening",
+  "evidence": {
+    "schemaVersion": "anchor-evidence-v1",
+    "updatedAt": "2026-05-12",
+    "purpose": "Preserve SPEC dashboard statuses while labeling prototype, fixture, settings-only, blocked, and verified surfaces for Pass 1 truthfulness.",
+    "labels": [
+      {
+        "label": "verified",
+        "surfaces": [
+          "private-beta security mechanics",
+          "authenticated JSON export download route",
+          "service worker registration",
+          "opt-in live OpenAI Realtime test path",
+          "returning-user auth and local/dev password reset"
+        ],
+        "evidence": [
+          "CAPABILITY_LEDGER.md",
+          "review/agent-qa-report.md"
+        ]
+      },
+      {
+        "label": "prototype",
+        "surfaces": [
+          "text coach deterministic local replies",
+          "voice controls without full mute/reconnect/listening UI",
+          "privacy controls without complete V1 recent-auth/delete matrix",
+          "skill timer static running state"
+        ],
+        "evidence": [
+          "review/agent-ui-pseudo-report.md",
+          "review/agent-backend-report.md"
+        ]
+      },
+      {
+        "label": "settings-only",
+        "surfaces": [
+          "notifications preferences and quiet hours without browser permission, push subscription, or delivery"
+        ],
+        "evidence": [
+          "review/agent-ui-pseudo-report.md"
+        ]
+      },
+      {
+        "label": "demo-fixture",
+        "surfaces": [
+          "offline capture synthetic mutation tester",
+          "insights and exports using April 2026 seeded demo dates"
+        ],
+        "evidence": [
+          "review/agent-ui-pseudo-report.md"
+        ]
+      },
+      {
+        "label": "blocked",
+        "surfaces": [
+          "therapist sharing share links",
+          "passcode app lock",
+          "clinical/legal review gates",
+          "production deployment provisioning"
+        ],
+        "evidence": [
+          "IMPLEMENTATION_PLAN.md Gate 0"
+        ]
+      }
+    ]
+  },
+  "passes": [
+    {
+      "name": "Security and Production Config",
+      "note": "Production env validation, secure cookies, CSRF, request ids, and redacted audit metadata."
+    },
+    {
+      "name": "Real Voice Session Setup",
+      "note": "Server-mediated WebRTC setup through backend-owned Realtime call flow."
+    },
+    {
+      "name": "Real Export Artifacts",
+      "note": "Authenticated JSON export artifacts for session prep and privacy export."
+    },
+    {
+      "name": "Privacy Deletion Execution",
+      "note": "Executable privacy delete requests with artifact revocation and completion audit."
+    },
+    {
+      "name": "PWA Install and Offline Capture",
+      "note": "Manifest, service worker, app-shell cache, and local offline queue retry."
+    },
+    {
+      "name": "Observability, Audit, and Release Checks",
+      "note": "Audit events and private-beta readiness checks."
+    },
+    {
+      "name": "Full-Function Live OpenAI Test Slice",
+      "note": "Generated seed data, real Realtime WebSocket smoke, live browser WebRTC voice, exports, offline, deletion, and console verification."
+    },
+    {
+      "name": "Returning User Auth and Password Reset",
+      "note": "Segmented sign-in/create-account UX, returning-user bootstrap, dev reset code flow, semantic dialogs, and peaceful motion."
+    },
+    {
+      "name": "Session Shell Navigation and Guided UX",
+      "note": "Checking-session bootstrap, authenticated nav/menu/logout, network-first app shell cache, and one-section-at-a-time guided product flow."
+    },
+    {
+      "name": "Wayfinding, Focus Plan, and Midday Anchor",
+      "note": "Actionable Morning result, Today progress rail, focus/cope-ahead plan, Midday anchor check-in, and hash-based Back/Forward navigation."
+    }
+  ],
+  "layers": [
+    {
+      "icon": "UI",
+      "name": "Frontend",
+      "tech": "HTML5 / CSS / Vanilla JS"
+    },
+    {
+      "icon": "JS",
+      "name": "Client Logic",
+      "tech": "Browser modules / Service Worker"
+    },
+    {
+      "icon": "API",
+      "name": "Bun API",
+      "tech": "Bun.serve JSON routes"
+    },
+    {
+      "icon": "DB",
+      "name": "PostgreSQL",
+      "tech": "Migrations / parameterized SQL"
+    },
+    {
+      "icon": "AI",
+      "name": "Agents and Safety",
+      "tech": "OpenAI Realtime boundary / audit guardrails"
+    },
+    {
+      "icon": "QA",
+      "name": "Tests and Verification",
+      "tech": "bun test / Playwright / readiness check"
+    }
+  ],
+  "tasks": [
+    [
+      {
+        "description": "Expose CSRF, secure cookie, and private-beta security states without disrupting existing flows.",
+        "subtasks": [
+          "Verify production cookie and CSRF behavior."
+        ]
+      },
+      {
+        "description": "Show voice setup as server-mediated while preserving transcript preview and end controls.",
+        "subtasks": [
+          "No API key or raw audio reaches the browser."
+        ]
+      },
+      {
+        "description": "Render authenticated JSON download links after packet/export generation.",
+        "subtasks": [
+          "Redactions remain visible before download."
+        ]
+      },
+      {
+        "description": "Add executable delete control after confirmed delete request.",
+        "subtasks": [
+          "Deletion completion is visible."
+        ]
+      },
+      {
+        "description": "Register PWA manifest/service worker and render offline queue retry result.",
+        "subtasks": [
+          "Help Now remains available offline through app shell."
+        ]
+      },
+      {
+        "description": "Keep hardening status browser-visible and console-clean.",
+        "subtasks": [
+          "Manual smoke confirms no console issues."
+        ]
+      },
+      {
+        "description": "Expose live-test browser states for real WebRTC voice, generated workflow data, exports, offline sync, and deletion.",
+        "subtasks": [
+          "Keep normal browser flow deterministic unless live flag is set."
+        ]
+      },
+      {
+        "description": "Replace signup-only first screen with semantic account-access UI, segmented modes, reset dialog, and calm transitions.",
+        "subtasks": [
+          "Use sign-in as default and keep create-account consent explicit."
+        ]
+      },
+      {
+        "description": "Add authenticated shell, primary nav, menu, logout, and Today-first guided view.",
+        "subtasks": [
+          "Show one product section at a time."
+        ]
+      },
+      {
+        "description": "Add Today progress rail, actionable Morning result controls, Focus view, and Midday view.",
+        "subtasks": [
+          "Keep one guided task surface visible at a time."
+        ]
+      }
+    ],
+    [
+      {
+        "description": "Fetch CSRF token after signup and send it on mutating JSON requests.",
+        "subtasks": [
+          "Local mode remains compatible."
+        ]
+      },
+      {
+        "description": "Create browser SDP offer payload and handle SDP answer metadata.",
+        "subtasks": [
+          "Use deterministic offer fallback for tests."
+        ]
+      },
+      {
+        "description": "Download links now point to authenticated export endpoints.",
+        "subtasks": [
+          "No therapist share link in this phase."
+        ]
+      },
+      {
+        "description": "Execute delete request from client with explicit confirmation.",
+        "subtasks": [
+          "Render completed state."
+        ]
+      },
+      {
+        "description": "Persist failed offline mutations in localStorage and retry through sync route.",
+        "subtasks": [
+          "Stable client mutation ids are reused."
+        ]
+      },
+      {
+        "description": "Register service worker progressively and keep failures non-fatal.",
+        "subtasks": [
+          "Sensitive API responses are never cached."
+        ]
+      },
+      {
+        "description": "Create real RTCPeerConnection offer, fake generated audio capture, Realtime data-channel event handling, and cleanup.",
+        "subtasks": [
+          "Use local fallback for default tests."
+        ]
+      },
+      {
+        "description": "Wire auth state, returning-user bootstrap, reset request/confirm, and dialog focus behavior in vanilla JS.",
+        "subtasks": [
+          "Reveal onboarding or main app based on bootstrap state."
+        ]
+      },
+      {
+        "description": "Own session boot state, no-store API fetches, guided section routing, menu toggling, and logout behavior in vanilla JS.",
+        "subtasks": [
+          "Keep auth hidden while bootstrap is pending."
+        ]
+      },
+      {
+        "description": "Wire focus-plan save, Midday check-in/completion, anchor progress rendering, and hash-route Back/Forward behavior.",
+        "subtasks": [
+          "Honor valid hashes after authenticated bootstrap."
+        ]
+      }
+    ],
+    [
+      {
+        "description": "Validate production config and emit request-id headers on API responses.",
+        "subtasks": [
+          "CSRF enforced for production cookie-auth mutations."
+        ]
+      },
+      {
+        "description": "Proxy Realtime call setup and hangup through Bun-owned service boundary.",
+        "subtasks": [
+          "OpenAI key is backend-only."
+        ]
+      },
+      {
+        "description": "Create and serve authenticated JSON export artifacts.",
+        "subtasks": [
+          "Artifact endpoint requires active session."
+        ]
+      },
+      {
+        "description": "Add delete execution endpoint.",
+        "subtasks": [
+          "Missing delete requests return safe 404."
+        ]
+      },
+      {
+        "description": "Keep offline sync idempotent and audit sync outcomes.",
+        "subtasks": [
+          "Return accepted/rejected/needsReview arrays."
+        ]
+      },
+      {
+        "description": "Add private-beta readiness runner.",
+        "subtasks": [
+          "Checks config, db health, and required tables."
+        ]
+      },
+      {
+        "description": "Add opt-in live-test config, seeded API workflows, Realtime WebSocket smoke, and server-mediated WebRTC call setup.",
+        "subtasks": [
+          "Never expose OPENAI_API_KEY."
+        ]
+      },
+      {
+        "description": "Add authenticated app bootstrap plus password reset request and confirm routes.",
+        "subtasks": [
+          "Keep reset responses account-enumeration safe and production-safe."
+        ]
+      },
+      {
+        "description": "Return no-store bootstrap responses and reuse existing logout route for shell sign-out.",
+        "subtasks": [
+          "Do not add new session persistence semantics."
+        ]
+      },
+      {
+        "description": "Expose authenticated focus-plan read/write routes and keep Midday on existing check-in plus anchor-completion APIs.",
+        "subtasks": [
+          "Validate required focus fields server-side."
+        ]
+      }
+    ],
+    [
+      {
+        "description": "No new security tables required beyond CSRF cookie strategy.",
+        "subtasks": [
+          "Existing session schema remains."
+        ]
+      },
+      {
+        "description": "Persist OpenAI call id on voice sessions.",
+        "subtasks": [
+          "Do not persist raw audio."
+        ]
+      },
+      {
+        "description": "Create export artifact metadata table and packet artifact link.",
+        "subtasks": [
+          "Artifacts expire after 30 days by default."
+        ]
+      },
+      {
+        "description": "Track delete completion timestamp and remove user-owned product data.",
+        "subtasks": [
+          "Keep minimal delete request audit state."
+        ]
+      },
+      {
+        "description": "Reuse offline mutation table for retry/idempotency.",
+        "subtasks": [
+          "No sensitive API caching."
+        ]
+      },
+      {
+        "description": "Create audit events table.",
+        "subtasks": [
+          "Metadata is redacted before storage."
+        ]
+      },
+      {
+        "description": "Generate repeatable prototype data across auth, consent, routines, diary, skills, coach, chain, voice, exports, offline, and deletion.",
+        "subtasks": [
+          "Seed command is idempotent."
+        ]
+      },
+      {
+        "description": "Persist password reset tokens and expose bootstrap state for consents, today anchors, and daily plan.",
+        "subtasks": [
+          "Invalidate sessions after successful password reset."
+        ]
+      },
+      {
+        "description": "No schema change; use existing sessions, bootstrap data, anchors, and daily plan state.",
+        "subtasks": [
+          "Logout clears the session only."
+        ]
+      },
+      {
+        "description": "Create daily_focus_plans keyed by user and date and include focus plan in bootstrap state.",
+        "subtasks": [
+          "Delete focus plans during privacy deletion."
+        ]
+      }
+    ],
+    [
+      {
+        "description": "Redact sensitive metadata before audit persistence.",
+        "subtasks": [
+          "Free-text safety/diary fields are not stored in audit metadata."
+        ]
+      },
+      {
+        "description": "Configure Realtime session instructions for short DBT practice support.",
+        "subtasks": [
+          "No crisis therapy simulation."
+        ]
+      },
+      {
+        "description": "Generate exports from stable fields plus selected chain summaries.",
+        "subtasks": [
+          "Respect redaction before artifact write."
+        ]
+      },
+      {
+        "description": "Audit privacy delete request and completion.",
+        "subtasks": [
+          "Artifacts are revoked/deleted before data cleanup."
+        ]
+      },
+      {
+        "description": "Keep crisis resources available through cached app shell.",
+        "subtasks": [
+          "Sync failures never block Help Now."
+        ]
+      },
+      {
+        "description": "Audit export, delete, voice, and offline hardening events.",
+        "subtasks": [
+          "Readiness check gates private beta."
+        ]
+      },
+      {
+        "description": "Exercise OpenAI Realtime with generated audio/content and preserve transcript/save controls.",
+        "subtasks": [
+          "Backend owns standard API key."
+        ]
+      },
+      {
+        "description": "Preserve consent gates and crisis boundaries while enabling returning users to resume work.",
+        "subtasks": [
+          "No password/reset secrets are logged or exposed in production."
+        ]
+      },
+      {
+        "description": "Keep crisis resources visible and prevent stale app-shell cache from masking current session UX.",
+        "subtasks": [
+          "Sensitive API responses remain uncached."
+        ]
+      },
+      {
+        "description": "Keep DBT cope-ahead language but explain it plainly and preserve safety-mode handling for elevated Midday/check-in responses.",
+        "subtasks": [
+          "No external AI call is added for this slice."
+        ]
+      }
+    ],
+    [
+      {
+        "description": "Add RED/GREEN API tests for config, cookies, CSRF, and request ids.",
+        "subtasks": [
+          "Run bun test."
+        ]
+      },
+      {
+        "description": "Add RED/GREEN API and browser tests for server-mediated voice setup/end.",
+        "subtasks": [
+          "Mock Realtime in tests."
+        ]
+      },
+      {
+        "description": "Add RED/GREEN export artifact tests.",
+        "subtasks": [
+          "Verify redacted notes absent."
+        ]
+      },
+      {
+        "description": "Add RED/GREEN deletion execution tests.",
+        "subtasks": [
+          "Verify completion and audit event."
+        ]
+      },
+      {
+        "description": "Add RED/GREEN PWA/offline retry tests.",
+        "subtasks": [
+          "Verify service worker registration."
+        ]
+      },
+      {
+        "description": "Run db reset, unit/API, browser, readiness, and manual smoke.",
+        "subtasks": [
+          "Update ledger/history/NotebookLM."
+        ]
+      },
+      {
+        "description": "Run default tests, seeded API tests, live OpenAI tests, live browser WebRTC, and update project tracking artifacts.",
+        "subtasks": [
+          "Verify zero unexpected browser console issues."
+        ]
+      },
+      {
+        "description": "Cover signup, returning sign-in, existing session bootstrap, reset code flow, and console-clean browser smoke.",
+        "subtasks": [
+          "Run db reset, API tests, browser tests, and manual 3210 smoke."
+        ]
+      },
+      {
+        "description": "Cover authenticated refresh, one-section guided nav, logout, stale cache cleanup, API tests, and full browser regression.",
+        "subtasks": [
+          "Run db reset, bun test, browser tests, and manual 3210 smoke."
+        ]
+      },
+      {
+        "description": "Cover actionable Morning result, focus-plan save/bootstrap, Midday completion, hash history, and full browser regression.",
+        "subtasks": [
+          "Run db reset, bun test, browser tests, and manual 3210 smoke."
+        ]
+      }
+    ]
+  ],
+  "statuses": [
+    [
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done"
+    ],
+    [
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done"
+    ],
+    [
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done"
+    ],
+    [
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done"
+    ],
+    [
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done"
+    ],
+    [
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "done"
+    ]
+  ]
+};
+
+function normalizeStateShape(rawState) {
+  const next = rawState ? JSON.parse(JSON.stringify(rawState)) : cloneDefault();
+
+  if (!Array.isArray(next.passes)) next.passes = [];
+  if (!Array.isArray(next.layers)) next.layers = [];
+  if (!Array.isArray(next.tasks)) next.tasks = [];
+  if (!Array.isArray(next.statuses)) next.statuses = [];
+
+  // Ensure tasks/status rows exist for every layer
+  next.layers.forEach((_, li) => {
+    if (!Array.isArray(next.tasks[li])) next.tasks[li] = [];
+    if (!Array.isArray(next.statuses[li])) next.statuses[li] = [];
+
+    next.passes.forEach((__, pi) => {
+      next.tasks[li][pi] = normalizeTask(next.tasks[li][pi]);
+
+      if (!['todo', 'active', 'done'].includes(next.statuses[li][pi])) {
+        next.statuses[li][pi] = 'todo';
+      }
+    });
+
+    next.tasks[li].length = next.passes.length;
+    next.statuses[li].length = next.passes.length;
+  });
+
+  next.tasks.length = next.layers.length;
+  next.statuses.length = next.layers.length;
+
+  if (typeof next.projectName !== 'string') {
+    next.projectName = 'My Project';
+  }
+
+  return next;
+}
+
+function normalizeTask(task) {
+  if (typeof task === 'string') {
+    return { description: task, subtasks: [] };
+  }
+
+  if (!task || typeof task !== 'object' || Array.isArray(task)) {
+    return { description: '', subtasks: [] };
+  }
+
+  return {
+    description: String(task.description ?? ''),
+    subtasks: Array.isArray(task.subtasks)
+      ? task.subtasks.map(subtask => String(subtask ?? '').trim()).filter(Boolean)
+      : []
+  };
+}
+
+function getTask(li, pi) {
+  if (!state.tasks[li]) state.tasks[li] = [];
+  state.tasks[li][pi] = normalizeTask(state.tasks[li][pi]);
+  return state.tasks[li][pi];
+}
+
+function taskToEditorText(task) {
+  const safeTask = normalizeTask(task);
+  const lines = [safeTask.description.trimEnd()];
+
+  if (safeTask.subtasks.length) {
+    lines.push('');
+    safeTask.subtasks.forEach(subtask => {
+      lines.push(`- ${subtask}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+function editorTextToTask(text) {
+  const raw = String(text || '').replace(/\r\n/g, '\n');
+  const lines = raw.split('\n');
+
+  const descriptionLines = [];
+  const subtasks = [];
+  let foundSubtask = false;
+
+  lines.forEach(line => {
+    const bulletMatch = line.match(/^\s*[-*]\s+(.*)$/);
+
+    if (bulletMatch) {
+      foundSubtask = true;
+      const value = bulletMatch[1].trim();
+      if (value) subtasks.push(value);
+      return;
+    }
+
+    if (!foundSubtask) {
+      descriptionLines.push(line);
+    } else if (line.trim()) {
+      // If user typed more text after bullets without a bullet,
+      // treat it as continuation text for the last subtask.
+      if (subtasks.length) {
+        subtasks[subtasks.length - 1] += ` ${line.trim()}`;
+      }
+    }
+  });
+
+  const description = descriptionLines.join('\n').trim();
+
+  return {
+    description,
+    subtasks
+  };
+}
+
+// ─── LOAD / CLONE ──────────────────────────────────────────────────────────
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('vsd-v2');
+    if (raw) return normalizeStateShape(JSON.parse(raw));
+  } catch(e) {}
+  return null;
+}
+
+function cloneDefault() {
+  return normalizeStateShape(JSON.parse(JSON.stringify(DEFAULT_STATE)));
+}
+
+// ─── SAVE ──────────────────────────────────────────────────────────────────
+
+let saveTimer = null;
+let toastTimer = null;
+
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    localStorage.setItem('vsd-v2', JSON.stringify(normalizeStateShape(state)));
+    showToast();
+  }, 400);
+}
+
+function showToast() {
+  const t = document.getElementById('save-toast');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+// ─── TASK TEXT HELPERS ─────────────────────────────────────────────────────
+
+function renderInlineText(text) {
+  return String(text || '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+function renderTask(task) {
+  const safeTask = normalizeTask(task);
+  const descriptionHtml = renderInlineText(safeTask.description || '');
+
+  const subtasksHtml = safeTask.subtasks.length
+    ? `
+      <ul class="cell-subtasks">
+        ${safeTask.subtasks.map(subtask => `<li>${renderInlineText(subtask)}</li>`).join('')}
+      </ul>
+    `
+    : '';
+
+  return `
+    <div class="cell-task-description">${descriptionHtml || '<span class="task-empty">No description yet.</span>'}</div>
+    ${subtasksHtml}
+  `;
+}
+
+// ─── STATUS ────────────────────────────────────────────────────────────────
+
+const STATUS_CYCLE  = ['todo','active','done'];
+const STATUS_LABELS = { todo:'TODO', active:'IN PROGRESS', done:'DONE' };
+
+function colStatus(pi) {
+  const col = state.layers.map((_,li) => state.statuses[li][pi]);
+  if (col.every(s => s==='done'))   return '✓ Complete';
+  if (col.some(s => s==='active'))  return '● Active';
+  if (col.some(s => s==='done'))    return '◑ Partial';
+  return '○ Queued';
+}
+
+// ─── BUILD GRID ─────────────────────────────────────────────────────────────
+
+function buildGrid() {
+  state = normalizeStateShape(state);
+
+  const table = document.getElementById('grid');
+  table.innerHTML = '';
+
+  const thead = table.createTHead();
+  const hrow  = thead.insertRow();
+
+  // Corner
+  const corner = document.createElement('th');
+  corner.className = 'corner col-layer';
+  hrow.appendChild(corner);
+
+  // Pass headers
+  state.passes.forEach((pass, pi) => {
+    const th = document.createElement('th');
+    th.className = 'col-pass';
+    th.dataset.col = pi;
+    th.innerHTML = buildPassHeader(pi);
+    hrow.appendChild(th);
+  });
+
+  // Add-pass button
+  const addTh = document.createElement('th');
+  addTh.className = 'add-pass-col';
+  addTh.innerHTML = `<div class="add-pass-btn" onclick="addPass()"><span style="font-size:22px;line-height:1">+</span><span>Pass</span></div>`;
+  hrow.appendChild(addTh);
+
+  // Body
+  const tbody = table.createTBody();
+
+  state.layers.forEach((layer, li) => {
+    const row = tbody.insertRow();
+    row.dataset.row = li;
+
+    // Layer header cell
+    const lhCell = row.insertCell();
+    lhCell.className = 'layer-header-cell col-layer';
+    lhCell.innerHTML = buildLayerHeader(li);
+
+    // Task cells
+    state.passes.forEach((_, pi) => {
+      const td = document.createElement('td');
+      td.className = 'cell-wrap';
+      td.id = `cell-${li}-${pi}`;
+      td.dataset.col = pi;
+      td.innerHTML = buildCell(li, pi, false);
+      row.appendChild(td);
+    });
+
+    // Spacer under add-pass
+    const spacer = row.insertCell();
+    spacer.className = 'add-pass-col';
+  });
+
+  setupHover();
+  updateStats();
+}
+
+function buildPassHeader(pi) {
+  const pass = state.passes[pi];
+  const color = passColor(pi);
+  const bgRgb = hexToRgb(color);
+  return `
+    <div class="pass-header"
+         style="background:rgba(${bgRgb},0.1); border-color:rgba(${bgRgb},0.28);"
+         data-ph="${pi}">
+      <div class="pass-header-top">
+        <div class="pass-num" style="color:${color}">Pass ${pi}</div>
+        <button class="pass-delete-btn" style="color:${color}" onclick="confirmDeletePass(${pi})" title="Delete this pass">×</button>
+      </div>
+      <input class="pass-name-edit" type="text"
+             value="${escAttr(pass.name)}"
+             style="color:#fff"
+             onchange="state.passes[${pi}].name=this.value; save(); updateColBadges();"
+             onclick="event.stopPropagation()"
+             spellcheck="false" />
+      <textarea class="pass-note-edit"
+                rows="2"
+                onchange="state.passes[${pi}].note=this.value; save();"
+                onclick="event.stopPropagation()"
+                spellcheck="false">${escText(pass.note)}</textarea>
+      <div class="pass-badge" style="background:rgba(${bgRgb},0.18); color:${color}" id="badge-${pi}">${colStatus(pi)}</div>
+      <div class="col-arrow" style="color:${color}" id="arrow-${pi}">▼</div>
+    </div>`;
+}
+
+function buildLayerHeader(li) {
+  const layer = state.layers[li];
+  return `
+    <div class="layer-header">
+      <div class="layer-icon">${layer.icon}</div>
+      <div style="flex:1;min-width:0">
+        <input class="layer-name-edit" type="text"
+               value="${escAttr(layer.name)}"
+               onchange="state.layers[${li}].name=this.value; save();"
+               spellcheck="false" />
+        <input class="layer-tech-edit" type="text"
+               value="${escAttr(layer.tech)}"
+               onchange="state.layers[${li}].tech=this.value; save();"
+               spellcheck="false" />
+      </div>
+      <button class="layer-delete-btn" onclick="confirmDeleteLayer(${li})" title="Delete this layer">×</button>
+    </div>`;
+}
+
+function buildCell(li, pi, editing) {
+  const status = state.statuses[li][pi];
+  const color  = passColor(pi);
+  const lc     = layerColor(li);
+  const task   = getTask(li, pi);
+
+  const taskContent = editing
+    ? `<textarea class="cell-editor" id="editor-${li}-${pi}"
+                 onblur="saveEdit(${li},${pi})"
+                 onkeydown="editorKey(event,${li},${pi})"
+                 spellcheck="false">${escText(taskToEditorText(task))}</textarea>
+       <div class="edit-hint">First lines = description · bullet lines = subtasks · Blur or Ctrl+↵ to save · Esc to cancel</div>`
+    : `<div class="cell-task" onclick="openEdit(${li},${pi})" title="Click to edit">${renderTask(task)}</div>`;
+
+  return `
+    <div class="cell ${status}" id="c-${li}-${pi}"
+         style="--col-color:${color}; border-left:3px solid ${lc};">
+      <div class="cell-status-bar"></div>
+      ${taskContent}
+      <div class="cell-footer">
+        <button class="status-pill" onclick="cycleStatus(${li},${pi})">${STATUS_LABELS[status]}</button>
+        <span class="checkmark" style="color:#3fb950">${status==='done'?'✓':''}</span>
+      </div>
+    </div>`;
+}
+
+// ─── HOVER (flicker-free) ───────────────────────────────────────────────────
+
+let hoveredCol = -1;
+let hoverBound = false;
+
+function setupHover() {
+  if (hoverBound) return;
+  hoverBound = true;
+
+  const table = document.getElementById('grid');
+
+  table.addEventListener('mouseover', (e) => {
+    const colEl = e.target.closest('[data-col]');
+    const col = colEl ? parseInt(colEl.dataset.col, 10) : -1;
+    if (isNaN(col) || col === hoveredCol) return;
+    setColHighlight(col);
+  });
+
+  table.addEventListener('mouseleave', () => {
+    setColHighlight(-1);
+  });
+}
+
+function setColHighlight(pi) {
+  if (hoveredCol !== -1) {
+    state.layers.forEach((_, li) => {
+      const c = document.getElementById(`c-${li}-${hoveredCol}`);
+      if (c) c.classList.remove('col-hl');
+    });
+    const prevArrow = document.getElementById(`arrow-${hoveredCol}`);
+    if (prevArrow) prevArrow.style.opacity = '0';
+  }
+
+  hoveredCol = pi;
+
+  if (pi === -1) {
+    document.getElementById('slice-name').textContent = ``;
+    return;
+  }
+
+  state.layers.forEach((_, li) => {
+    const c = document.getElementById(`c-${li}-${pi}`);
+    if (c) c.classList.add('col-hl');
+  });
+
+  const arrow = document.getElementById(`arrow-${pi}`);
+  if (arrow) arrow.style.opacity = '1';
+
+  const pass = state.passes[pi];
+  document.getElementById('slice-name').textContent = `Pass ${pi}: ${pass.name}`;
+}
+
+// ─── EDIT CELLS ────────────────────────────────────────────────────────────
+
+let editingCell = null; // [li, pi]
+let cancelTask  = null;
+
+function openEdit(li, pi) {
+  if (editingCell && (editingCell[0] !== li || editingCell[1] !== pi)) {
+    commitEdit(...editingCell);
+  }
+
+  cancelTask = JSON.parse(JSON.stringify(getTask(li, pi)));
+  editingCell = [li, pi];
+
+  document.getElementById(`cell-${li}-${pi}`).innerHTML = buildCell(li, pi, true);
+
+  const ed = document.getElementById(`editor-${li}-${pi}`);
+  if (ed) {
+    ed.focus();
+    ed.select();
+    autoResize(ed);
+    ed.addEventListener('input', () => autoResize(ed));
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function saveEdit(li, pi) {
+  const ed = document.getElementById(`editor-${li}-${pi}`);
+  if (ed) {
+    state.tasks[li][pi] = editorTextToTask(ed.value);
+    save();
+  }
+  editingCell = null;
+  cancelTask = null;
+  document.getElementById(`cell-${li}-${pi}`).innerHTML = buildCell(li, pi, false);
+}
+
+function commitEdit(li, pi) {
+  const ed = document.getElementById(`editor-${li}-${pi}`);
+  if (ed) {
+    state.tasks[li][pi] = editorTextToTask(ed.value);
+  }
+  editingCell = null;
+  cancelTask = null;
+  document.getElementById(`cell-${li}-${pi}`).innerHTML = buildCell(li, pi, false);
+}
+
+function editorKey(e, li, pi) {
+  if (e.key === 'Escape') {
+    state.tasks[li][pi] = JSON.parse(JSON.stringify(cancelTask || createEmptyTask()));
+    editingCell = null;
+    cancelTask = null;
+    document.getElementById(`cell-${li}-${pi}`).innerHTML = buildCell(li, pi, false);
+    e.preventDefault();
+  }
+
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    saveEdit(li, pi);
+    e.preventDefault();
+  }
+}
+
+// ─── STATUS CYCLE ──────────────────────────────────────────────────────────
+
+function cycleStatus(li, pi) {
+  const cur  = state.statuses[li][pi];
+  const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length];
+  state.statuses[li][pi] = next;
+
+  const editing = editingCell && editingCell[0] === li && editingCell[1] === pi;
+  document.getElementById(`cell-${li}-${pi}`).innerHTML = buildCell(li, pi, editing);
+
+  if (editing) {
+    const ed = document.getElementById(`editor-${li}-${pi}`);
+    if (ed) {
+      ed.focus();
+      autoResize(ed);
+      ed.addEventListener('input', () => autoResize(ed));
+    }
+  }
+
+  updateStats();
+  updateColBadges();
+  save();
+}
+
+function updateColBadges() {
+  state.passes.forEach((_, pi) => {
+    const b = document.getElementById(`badge-${pi}`);
+    if (b) b.textContent = colStatus(pi);
+  });
+}
+
+// ─── STATS ─────────────────────────────────────────────────────────────────
+
+function updateStats() {
+  let done = 0, active = 0, total = 0;
+
+  state.layers.forEach((_,li) => state.passes.forEach((__,pi) => {
+    total++;
+    if (state.statuses[li][pi] === 'done')   done++;
+    if (state.statuses[li][pi] === 'active') active++;
+  }));
+
+  document.getElementById('stat-done').textContent   = done;
+  document.getElementById('stat-active').textContent = active;
+  document.getElementById('stat-total').textContent  = total;
+  document.getElementById('progress-fill').style.width = (total ? Math.round(done / total * 100) : 0) + '%';
+}
+
+// ─── ADD / DELETE PASSES ───────────────────────────────────────────────────
+
+function addPass() {
+  const pi = state.passes.length;
+  state.passes.push({ name: `New Pass ${pi}`, note: 'Describe this pass...' });
+
+  state.layers.forEach((_, li) => {
+    state.tasks[li].push(createEmptyTask());
+    state.statuses[li].push('todo');
+  });
+
+  save();
+  buildGrid();
+}
+
+let pendingDeletePass = -1;
+
+function confirmDeletePass(pi) {
+  if (state.passes.length <= 1) {
+    alert("You need at least one pass.");
+    return;
+  }
+
+  pendingDeletePass = pi;
+  document.getElementById('modal-title').textContent = `Delete "${state.passes[pi].name}"?`;
+  document.getElementById('modal-body').textContent  = 'This will remove the pass column and all its task data. This cannot be undone.';
+  document.getElementById('modal-confirm').onclick   = () => { deletePass(pendingDeletePass); closeModal(); };
+  document.getElementById('modal').classList.add('open');
+}
+
+function deletePass(pi) {
+  state.passes.splice(pi, 1);
+  state.layers.forEach((_, li) => {
+    state.tasks[li].splice(pi, 1);
+    state.statuses[li].splice(pi, 1);
+  });
+  save();
+  buildGrid();
+}
+
+// ─── ADD / DELETE LAYERS ───────────────────────────────────────────────────
+
+function addLayer() {
+  const li = state.layers.length;
+  state.layers.push({ icon: '🔧', name: `New Layer ${li}`, tech: 'Tech / Tool' });
+
+  const row = [];
+  const sts = [];
+
+  state.passes.forEach(() => {
+    row.push(createEmptyTask());
+    sts.push('todo');
+  });
+
+  state.tasks.push(row);
+  state.statuses.push(sts);
+
+  save();
+  buildGrid();
+}
+
+let pendingDeleteLayer = -1;
+
+function confirmDeleteLayer(li) {
+  if (state.layers.length <= 1) {
+    alert("You need at least one layer.");
+    return;
+  }
+
+  pendingDeleteLayer = li;
+  document.getElementById('modal-title').textContent = `Delete "${state.layers[li].name}" layer?`;
+  document.getElementById('modal-body').textContent  = 'This will remove the layer row and all its task data. This cannot be undone.';
+  document.getElementById('modal-confirm').onclick   = () => { deleteLayer(pendingDeleteLayer); closeModal(); };
+  document.getElementById('modal').classList.add('open');
+}
+
+function deleteLayer(li) {
+  state.layers.splice(li, 1);
+  state.tasks.splice(li, 1);
+  state.statuses.splice(li, 1);
+  save();
+  buildGrid();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+// ─── EXPORT / IMPORT ───────────────────────────────────────────────────────
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(normalizeStateShape(state), null, 2)], { type:'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `vsd-${slugify(state.projectName)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON() {
+  document.getElementById('import-input').click();
+}
+
+function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+
+      if (!imported.passes || !imported.layers || !imported.tasks || !imported.statuses) {
+        alert('Invalid VSD JSON file.');
+        return;
+      }
+
+      state = normalizeStateShape(imported);
+      localStorage.setItem('vsd-v2', JSON.stringify(state));
+      document.getElementById('project-name').value = state.projectName || '';
+      buildGrid();
+    } catch(err) {
+      alert('Could not parse JSON: ' + err.message);
+    }
+  };
+
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ─── RESET ─────────────────────────────────────────────────────────────────
+
+function confirmReset() {
+  document.getElementById('modal-title').textContent = 'Reset to defaults?';
+  document.getElementById('modal-body').textContent  = 'This will replace all your data with the built-in SPA example. Your current state will be lost.';
+  document.getElementById('modal-confirm').onclick   = () => {
+    state = cloneDefault();
+    localStorage.removeItem('vsd-v2');
+    document.getElementById('project-name').value = state.projectName;
+    buildGrid();
+    closeModal();
+  };
+  document.getElementById('modal').classList.add('open');
+}
+
+// ─── UTILS ─────────────────────────────────────────────────────────────────
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+function slugify(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/(^-|-$)/g,'');
+}
+
+function escAttr(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;');
+}
+
+function escText(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+// Close modal on overlay click
+document.getElementById('modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+
+state = loadState() || cloneDefault();
+state = normalizeStateShape(state);
+document.getElementById('project-name').value = state.projectName || 'My Project';
+buildGrid();
+</script>
+</body>
+</html>
