@@ -77,4 +77,12 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
   restores the filmstrip + active image; "New photo" clears it.
 - **Keyboard:** Cmd/Ctrl+Z undo, Shift+Cmd/Ctrl+Z redo (plus Undo/Redo buttons).
 
-_Not yet built:_ before/after + Pro render (Pass 4), themes/PWA polish (Pass 5).
+### Pass 4 — Before/After + High-Quality Render ✅
+- **Compare:** `<before-after>` element layers the original under the current image and reveals it
+  with a draggable, keyboard-accessible divider (role=slider). The Compare toggle animates via a
+  View Transition.
+- **Quality:** a native Popover-API Settings panel offers Flash (default) vs Pro
+  (`gemini-3-pro-image-preview`, up to 4K). The choice applies to button + voice edits; the Pro
+  cost/quality tradeoff is surfaced as a hint.
+
+_Not yet built:_ themes/PWA polish (Pass 5).

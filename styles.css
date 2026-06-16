@@ -135,8 +135,43 @@ body {
 
 #capture,
 #voice,
-#history {
+#history,
+#compare-view {
   width: 100%;
+}
+
+/* Pro-render hint. */
+.pro-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--soft);
+  text-align: center;
+}
+
+/* Settings popover (Popover API). */
+.settings-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  max-width: 320px;
+  background: var(--frame);
+  color: var(--ink);
+  font-size: 13px;
+}
+.settings-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+.model-opt {
+  display: flex;
+  gap: 8px;
+  align-items: start;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.model-opt + .model-opt {
+  border-top: 1px solid var(--line);
 }
 
 .btn-primary,

@@ -37,18 +37,39 @@
         <img id="room-image" alt="The room being redesigned" />
       </figure>
 
+      <!-- Before/after comparison (Pass 4). Shown only while comparing. -->
+      <before-after id="compare-view" hidden></before-after>
+
       <!-- Voice assistant: the primary edit affordance (Pass 2). Shown once a photo exists. -->
       <voice-indicator id="voice" hidden></voice-indicator>
 
       <!-- Edit-history filmstrip (Pass 3). Shown once a photo exists. -->
       <edit-history id="history" hidden></edit-history>
 
+      <!-- Brief Pro hint (Pass 4). Shown only when the Pro model is selected. -->
+      <p id="pro-hint" class="pro-hint" hidden>Pro render selected — higher quality, up to 4K, a little slower.</p>
+
       <!-- Actions for an existing photo. -->
       <div class="actions" id="actions" hidden>
         <button id="edit-button" class="btn-primary" type="button">Try a sample edit</button>
+        <button id="compare-button" class="btn-secondary" type="button" aria-pressed="false">Compare</button>
         <button id="undo-button" class="btn-secondary" type="button" aria-keyshortcuts="Meta+Z Control+Z">Undo</button>
         <button id="redo-button" class="btn-secondary" type="button" aria-keyshortcuts="Shift+Meta+Z Shift+Control+Z">Redo</button>
+        <button id="settings-button" class="btn-secondary" type="button" popovertarget="settings-panel">⚙ Settings</button>
         <button id="retake-button" class="btn-secondary" type="button">New photo</button>
+      </div>
+
+      <!-- Settings popover (Pass 4) — native Popover API handles dismiss/focus. -->
+      <div id="settings-panel" popover class="settings-panel">
+        <h2 class="settings-title">Edit quality</h2>
+        <label class="model-opt">
+          <input type="radio" name="edit-model" value="flash" checked />
+          <span><strong>Flash</strong> — fast, great for iterating (default).</span>
+        </label>
+        <label class="model-opt">
+          <input type="radio" name="edit-model" value="pro" />
+          <span><strong>Pro</strong> — highest quality, up to 4K, slower &amp; costlier.</span>
+        </label>
       </div>
 
       <!-- Non-blocking error region. Populated via textContent only (H3). -->
@@ -59,5 +80,7 @@
     <script type="module" src="js/components/camera-capture.js"></script>
     <script type="module" src="js/components/voice-indicator.js"></script>
     <script type="module" src="js/components/edit-history.js"></script>
+    <script type="module" src="js/components/before-after.js"></script>
+    <script type="module" src="js/settings.js"></script>
   </body>
 </html>

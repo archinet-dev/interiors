@@ -22,7 +22,8 @@ const INITIAL_STATE = {
   voiceActive: false, // true while a Live voice session is open (Pass 2)
   voiceTranscript: [], // input + output captions — [{ role, text, ts }] (Pass 2)
   editingInFlight: false, // true while an image edit is running
-  editingModel: "flash", // 'flash' | 'pro' — model toggle arrives in Pass 4
+  editingModel: "flash", // 'flash' | 'pro' — model selection (Pass 4)
+  comparing: false, // true while the before/after view is shown (Pass 4)
   error: null, // string | null — last user-visible error
 };
 

@@ -24,6 +24,9 @@ const voice = document.getElementById("voice");
 const historyStrip = document.getElementById("history");
 const actions = document.getElementById("actions");
 const img = document.getElementById("room-image");
+const compareView = document.getElementById("compare-view");
+const compareButton = document.getElementById("compare-button");
+const proHint = document.getElementById("pro-hint");
 const editButton = document.getElementById("edit-button");
 const undoButton = document.getElementById("undo-button");
 const redoButton = document.getElementById("redo-button");
@@ -40,12 +43,19 @@ const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 function render(state) {
   const hasPhoto = Boolean(state.sourceImage);
 
-  // Toggle capture surface vs. room view.
+  // Toggle capture surface vs. room view. While comparing, show before/after instead of the image.
+  const comparing = hasPhoto && state.comparing;
   capture.hidden = hasPhoto;
-  imageView.hidden = !hasPhoto;
+  imageView.hidden = !hasPhoto || comparing;
+  compareView.hidden = !comparing;
   voice.hidden = !hasPhoto;
   historyStrip.hidden = !hasPhoto;
   actions.hidden = !hasPhoto;
+
+  // Compare toggle + Pro hint.
+  compareButton.setAttribute("aria-pressed", String(state.comparing));
+  compareButton.textContent = state.comparing ? "Exit compare" : "Compare";
+  proHint.hidden = !(hasPhoto && state.editingModel === "pro");
 
   // Edit button reflects editing status.
   editButton.disabled = state.editingInFlight;
@@ -108,11 +118,18 @@ editButton.addEventListener("click", () => runEdit(SAMPLE_PROMPT));
 undoButton.addEventListener("click", () => undo());
 redoButton.addEventListener("click", () => redo());
 
+// Compare toggle — animate the swap via a View Transition (reduced-motion falls back to instant).
+compareButton.addEventListener("click", () => {
+  const toggle = () => setState({ comparing: !getState().comparing });
+  if (document.startViewTransition && !prefersReducedMotion.matches) document.startViewTransition(toggle);
+  else toggle();
+});
+
 // Retake: stop any voice session, clear the persisted session, and return to the capture surface.
 retakeButton.addEventListener("click", () => {
   stopVoiceSession();
   clearHistory();
-  setState({ sourceImage: null, activeImage: null, error: null });
+  setState({ sourceImage: null, activeImage: null, error: null, comparing: false });
 });
 
 // Keyboard: Cmd/Ctrl+Z = undo, Shift+Cmd/Ctrl+Z = redo (only when a photo is loaded).
