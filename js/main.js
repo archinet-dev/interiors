@@ -11,12 +11,14 @@
 import { getState, setState, subscribe } from "./state.js";
 import { runEdit } from "./actions/editImage.js";
 import { setPhoto } from "./actions/setPhoto.js";
+import { stopVoiceSession } from "./actions/voiceSession.js";
 
 const SAMPLE_PROMPT = "Add a large leafy potted houseplant in the empty corner of the room, matching the existing lighting and perspective.";
 
 // --- DOM references ---
 const capture = document.getElementById("capture");
 const imageView = document.getElementById("image-view");
+const voice = document.getElementById("voice");
 const actions = document.getElementById("actions");
 const img = document.getElementById("room-image");
 const editButton = document.getElementById("edit-button");
@@ -36,6 +38,7 @@ function render(state) {
   // Toggle capture surface vs. room view.
   capture.hidden = hasPhoto;
   imageView.hidden = !hasPhoto;
+  voice.hidden = !hasPhoto;
   actions.hidden = !hasPhoto;
 
   // Edit button reflects editing status.
@@ -91,8 +94,11 @@ function swapImage(blob) {
 capture.addEventListener("photo", (e) => setPhoto(e.detail.blob));
 // Edit the current photo.
 editButton.addEventListener("click", () => runEdit(SAMPLE_PROMPT));
-// Retake: clear the photo to return to the capture surface.
-retakeButton.addEventListener("click", () => setState({ sourceImage: null, activeImage: null, error: null }));
+// Retake: stop any voice session, then clear the photo to return to the capture surface.
+retakeButton.addEventListener("click", () => {
+  stopVoiceSession();
+  setState({ sourceImage: null, activeImage: null, error: null });
+});
 
 subscribe(render);
 

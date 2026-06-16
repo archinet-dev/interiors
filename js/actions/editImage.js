@@ -8,16 +8,17 @@ import { getState, setState } from "../state.js";
 import { editImage as apiEditImage, MODELS } from "../apiClient.js";
 
 // Run an edit against the current activeImage with the given prompt.
-// Guards against concurrent edits and a missing image.
+// Guards against concurrent edits and a missing image. Returns true on success, false otherwise
+// (so the voice tool-call handler can report the outcome back to the Live agent).
 export async function runEdit(prompt) {
   const { activeImage, editingInFlight, editingModel } = getState();
   if (editingInFlight) {
-    console.warn("[editImage] edit already in flight — ignoring click.");
-    return;
+    console.warn("[editImage] edit already in flight — ignoring request.");
+    return false;
   }
   if (!activeImage) {
     setState({ error: "No image loaded to edit yet." });
-    return;
+    return false;
   }
 
   console.log(`[editImage] starting edit (model=${editingModel}):`, prompt);
@@ -28,9 +29,11 @@ export async function runEdit(prompt) {
     const edited = await apiEditImage(activeImage, prompt, model);
     console.log("[editImage] edit complete:", edited.type, edited.size, "bytes");
     setState({ activeImage: edited, editingInFlight: false });
+    return true;
   } catch (err) {
     // Surface the complete error to the user (per project rule) and clear the in-flight flag.
     console.error("[editImage] edit failed:", err);
     setState({ editingInFlight: false, error: err.message || String(err) });
+    return false;
   }
 }

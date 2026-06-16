@@ -17,8 +17,9 @@ const INITIAL_STATE = {
   sourceImage: null, // Blob — the original captured/sample photo
   activeImage: null, // Blob — the current (possibly edited) image
   history: [], // [{ id, prompt, image, ts }] — populated in Pass 3
-  voiceStatus: "idle", // 'idle' | 'listening' | 'thinking' | 'speaking' — used in Pass 2
-  voiceTranscript: [], // input + output captions — used in Pass 2
+  voiceStatus: "idle", // 'idle' | 'listening' | 'thinking' | 'speaking' (Pass 2)
+  voiceActive: false, // true while a Live voice session is open (Pass 2)
+  voiceTranscript: [], // input + output captions — [{ role, text, ts }] (Pass 2)
   editingInFlight: false, // true while an image edit is running
   editingModel: "flash", // 'flash' | 'pro' — model toggle arrives in Pass 4
   error: null, // string | null — last user-visible error

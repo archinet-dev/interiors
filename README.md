@@ -59,5 +59,15 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
 - **Flow:** the captured/uploaded Blob → `setPhoto` action → `sourceImage`+`activeImage`; the UI
   toggles between the capture surface and the room view; "New photo" returns to capture.
 
-_Not yet built:_ voice tool-call (Pass 2), edit history + undo (Pass 3), before/after + Pro render
-(Pass 4), themes/PWA polish (Pass 5).
+### Pass 2 — Voice Tool Call (central mechanism) ✅
+- **Live voice agent:** `<voice-indicator>` toggles a Gemini Live session (native-audio) via
+  `actions/voiceSession.js`. The agent sees the photo, and a registered `editImage` function call
+  is the bridge: tool call → real Nano-Banana edit → `activeImage` update → new image fed back →
+  agent narrates. Transcripts (input + output) mirror into `state.voiceTranscript`.
+- **Audio:** mic captured at 16 kHz via an `AudioWorklet` (no `ScriptProcessorNode`); the agent's
+  24 kHz PCM is played back gaplessly; barge-in flushes playback.
+- **Key handling (H1):** the Live **WebSocket** is reverse-proxied by the Bun server
+  (`/api/genai/ws/*`), which injects the key into the upstream `wss://` — the browser never holds it.
+
+_Not yet built:_ edit history + undo (Pass 3), before/after + Pro render (Pass 4), themes/PWA polish
+(Pass 5).

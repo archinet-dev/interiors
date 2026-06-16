@@ -17,6 +17,7 @@ import { join, normalize } from "node:path"; // supported under Bun's Node-compa
 const ROOT = normalize(join(import.meta.dir, ".."));
 const PORT = Number(process.env.PORT) || 5173;
 const GEMINI_ORIGIN = "https://generativelanguage.googleapis.com";
+const GEMINI_WS_ORIGIN = "wss://generativelanguage.googleapis.com";
 
 // Bun populated this from .env automatically. Server-side ONLY — never the VITE_-prefixed copy.
 const KEY = process.env.GEMINI_API_KEY;
@@ -30,11 +31,21 @@ const BLOCKED = /^\/(server\/|\.env|\.git\/)/;
 
 const server = Bun.serve({
   port: PORT,
-  async fetch(req) {
+  async fetch(req, server) {
     const url = new URL(req.url);
     let path = decodeURIComponent(url.pathname);
 
-    // 1) PROXY — forward /api/genai/* to Gemini with the key injected.
+    // 0) LIVE WEBSOCKET PROXY — the SDK opens ws://<origin>/api/genai/ws/...BidiGenerateContent
+    //    ?key=<placeholder>. Upgrade it, then pipe to the upstream wss with the REAL key injected.
+    //    The browser never holds the key (H1); the key lives only in this Bun process.
+    if (path.startsWith("/api/genai/ws/")) {
+      const upstreamPath = path.slice("/api/genai".length); // /ws/google.ai.generativelanguage...
+      const upstreamUrl = `${GEMINI_WS_ORIGIN}${upstreamPath}?key=${KEY}`;
+      if (server.upgrade(req, { data: { upstreamUrl } })) return; // success → undefined
+      return new Response("WebSocket upgrade failed", { status: 426 });
+    }
+
+    // 1) REST PROXY — forward /api/genai/* to Gemini with the key injected.
     if (path.startsWith("/api/genai/")) {
       const upstreamPath = path.slice("/api/genai".length);
       // Drop any client-supplied ?key= — we always set the real key server-side.
@@ -76,6 +87,41 @@ const server = Bun.serve({
       status: 500,
       headers: { "content-type": "text/plain;charset=utf-8" },
     });
+  },
+
+  // Live WebSocket reverse-proxy handlers. Each client connection opens one upstream WS to
+  // Gemini (with the real key) and pipes frames both ways, buffering client frames until the
+  // upstream handshake completes. Text-as-text, binary-as-binary (R2).
+  websocket: {
+    open(ws) {
+      const queue = [];
+      ws.data.queue = queue;
+      const up = new WebSocket(ws.data.upstreamUrl); // Bun's global client WebSocket
+      up.binaryType = "arraybuffer";
+      ws.data.up = up;
+
+      up.onopen = () => {
+        for (const m of queue) up.send(m);
+        queue.length = 0;
+      };
+      up.onmessage = (e) => ws.send(e.data); // upstream → client (text or ArrayBuffer)
+      up.onerror = () => {
+        try { ws.close(1011, "upstream error"); } catch {}
+      };
+      up.onclose = (e) => {
+        try { ws.close(e.code && e.code >= 1000 ? e.code : 1000, e.reason || ""); } catch {}
+      };
+      console.log("[ws] client connected → opening upstream Live session");
+    },
+    message(ws, msg) {
+      const up = ws.data.up;
+      if (up && up.readyState === WebSocket.OPEN) up.send(msg); // client → upstream
+      else ws.data.queue.push(msg); // buffer until upstream open
+    },
+    close(ws) {
+      try { ws.data.up?.close(); } catch {} // propagate close upstream
+      console.log("[ws] client disconnected → upstream closed");
+    },
   },
 });
 

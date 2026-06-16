@@ -37,6 +37,9 @@
         <img id="room-image" alt="The room being redesigned" />
       </figure>
 
+      <!-- Voice assistant: the primary edit affordance (Pass 2). Shown once a photo exists. -->
+      <voice-indicator id="voice" hidden></voice-indicator>
+
       <!-- Actions for an existing photo. -->
       <div class="actions" id="actions" hidden>
         <button id="edit-button" class="btn-primary" type="button">Try a sample edit</button>
@@ -47,7 +50,8 @@
       <p id="error-box" class="error-box" role="alert" hidden></p>
     </main>
 
-    <!-- Pass 1: the capture custom element. -->
+    <!-- Custom elements. -->
     <script type="module" src="js/components/camera-capture.js"></script>
+    <script type="module" src="js/components/voice-indicator.js"></script>
   </body>
 </html>
