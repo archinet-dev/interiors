@@ -52,5 +52,12 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
 - **Server/proxy:** `server/index.js` (Bun) serves the app and injects `GEMINI_API_KEY` into
   upstream Gemini calls — no key in the client bundle (H1), Bun runtime (H6).
 
-_Not yet built:_ real camera/upload (Pass 1), voice tool-call (Pass 2), edit history + undo
-(Pass 3), before/after + Pro render (Pass 4), themes/PWA polish (Pass 5).
+### Pass 1 — Real Camera / Upload ✅
+- **Capture:** `<camera-capture>` custom element (Shadow DOM) — live camera (`getUserMedia` →
+  `<canvas>.toBlob()`, not `ImageCapture`), file upload, drag-and-drop, and a "Use sample" path.
+  Permission-denial degrades to upload/sample with a message and no console error.
+- **Flow:** the captured/uploaded Blob → `setPhoto` action → `sourceImage`+`activeImage`; the UI
+  toggles between the capture surface and the room view; "New photo" returns to capture.
+
+_Not yet built:_ voice tool-call (Pass 2), edit history + undo (Pass 3), before/after + Pro render
+(Pass 4), themes/PWA polish (Pass 5).

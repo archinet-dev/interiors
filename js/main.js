@@ -1,24 +1,29 @@
 // main.js — wires the UI to state and actions, and renders.
 //
-// Responsibilities (Pass 0):
-//  1. Load the hardcoded sample photo into state on startup.
-//  2. Subscribe to state and render the slices this page cares about (image, button, error).
-//  3. Wire the button to the editImage action.
-//  4. Swap the <img> inside document.startViewTransition() (with a reduced-motion fallback).
-//  5. Keep Blob-URL discipline: track the rendered Blob and revoke the prior object URL.
+// Responsibilities:
+//  1. Listen for the <camera-capture> `photo` event and adopt the photo (Pass 1).
+//  2. Subscribe to state and render the slices this page cares about.
+//  3. Toggle between the capture surface and the room view based on whether a photo exists.
+//  4. Wire the edit + retake buttons to actions.
+//  5. Swap the <img> inside document.startViewTransition() (reduced-motion fallback).
+//  6. Keep Blob-URL discipline: track the rendered Blob and revoke the prior object URL.
 
 import { getState, setState, subscribe } from "./state.js";
 import { runEdit } from "./actions/editImage.js";
+import { setPhoto } from "./actions/setPhoto.js";
 
-const SAMPLE_IMAGE_URL = "assets/sample-room.jpg";
 const SAMPLE_PROMPT = "Add a large leafy potted houseplant in the empty corner of the room, matching the existing lighting and perspective.";
 
 // --- DOM references ---
+const capture = document.getElementById("capture");
+const imageView = document.getElementById("image-view");
+const actions = document.getElementById("actions");
 const img = document.getElementById("room-image");
-const button = document.getElementById("edit-button");
+const editButton = document.getElementById("edit-button");
+const retakeButton = document.getElementById("retake-button");
 const errorBox = document.getElementById("error-box");
 
-// --- Blob-URL lifecycle tracking (PROMPT.md: every createObjectURL needs a revoke) ---
+// --- Blob-URL lifecycle tracking (every createObjectURL needs a matching revoke) ---
 let renderedBlob = null; // the Blob currently shown (compare by identity, NOT URL string)
 let renderedUrl = null; // its object URL, revoked when replaced
 
@@ -26,11 +31,19 @@ const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 // Render the parts of the DOM that depend on state.
 function render(state) {
-  // Button reflects editing status.
-  button.disabled = state.editingInFlight;
-  button.textContent = state.editingInFlight ? "Editing…" : "Try a sample edit";
+  const hasPhoto = Boolean(state.sourceImage);
 
-  // Error region (textContent only — never innerHTML on dynamic strings, constraint H3).
+  // Toggle capture surface vs. room view.
+  capture.hidden = hasPhoto;
+  imageView.hidden = !hasPhoto;
+  actions.hidden = !hasPhoto;
+
+  // Edit button reflects editing status.
+  editButton.disabled = state.editingInFlight;
+  editButton.textContent = state.editingInFlight ? "Editing…" : "Try a sample edit";
+  retakeButton.disabled = state.editingInFlight;
+
+  // Error region (textContent only — never innerHTML on dynamic strings, H3).
   if (state.error) {
     errorBox.textContent = state.error;
     errorBox.hidden = false;
@@ -42,6 +55,12 @@ function render(state) {
   // Image swap — only when the active Blob actually changed (identity compare).
   if (state.activeImage && state.activeImage !== renderedBlob) {
     swapImage(state.activeImage);
+  } else if (!state.activeImage && renderedUrl) {
+    // Photo cleared (retake) — release the rendered URL.
+    URL.revokeObjectURL(renderedUrl);
+    renderedUrl = null;
+    renderedBlob = null;
+    img.removeAttribute("src");
   }
 }
 
@@ -49,11 +68,9 @@ function render(state) {
 function swapImage(blob) {
   const nextUrl = URL.createObjectURL(blob);
   const prevUrl = renderedUrl;
-
   const apply = () => {
     img.src = nextUrl;
   };
-
   const finalize = () => {
     if (prevUrl) URL.revokeObjectURL(prevUrl); // revoke the OLD url after the swap
   };
@@ -62,31 +79,22 @@ function swapImage(blob) {
   renderedUrl = nextUrl;
 
   if (document.startViewTransition && !prefersReducedMotion.matches) {
-    const transition = document.startViewTransition(apply);
-    transition.finished.finally(finalize);
+    document.startViewTransition(apply).finished.finally(finalize);
   } else {
     apply();
-    // Revoke on next frame so the new src has loaded the bytes.
     requestAnimationFrame(finalize);
   }
 }
 
 // --- Wire up ---
-button.addEventListener("click", () => runEdit(SAMPLE_PROMPT));
+// New photo from the capture element → adopt it.
+capture.addEventListener("photo", (e) => setPhoto(e.detail.blob));
+// Edit the current photo.
+editButton.addEventListener("click", () => runEdit(SAMPLE_PROMPT));
+// Retake: clear the photo to return to the capture surface.
+retakeButton.addEventListener("click", () => setState({ sourceImage: null, activeImage: null, error: null }));
+
 subscribe(render);
 
-// --- Startup: load the hardcoded sample photo as a Blob into state ---
-async function loadSampleImage() {
-  try {
-    const res = await fetch(SAMPLE_IMAGE_URL);
-    if (!res.ok) throw new Error(`Failed to load sample image (HTTP ${res.status}).`);
-    const blob = await res.blob();
-    setState({ sourceImage: blob, activeImage: blob });
-    console.log("[main] sample image loaded:", blob.type, blob.size, "bytes");
-  } catch (err) {
-    console.error("[main] could not load sample image:", err);
-    setState({ error: err.message || String(err) });
-  }
-}
-
-loadSampleImage();
+// Initial paint (capture surface; no photo yet).
+render(getState());
