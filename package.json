@@ -1,0 +1,10 @@
+{
+  "name": "space-makeover-visualizer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local server/proxy for the Space Makeover Visualizer. The UI has no build step and no dependencies; this file only declares ESM for server.js and provides a start script.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

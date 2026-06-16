@@ -1,0 +1,158 @@
+/* styles.css — Pass 0 minimal, centered, responsive layout.
+   Design tokens come from DESIGN_TOKENS.md (extracted from the wireframes). The wireframe
+   palette is a neutral "paper" scaffold; richer oklch theming + light/dark arrive in Pass 5.
+   Only the tokens Pass 0 actually uses are defined here (the system grows per pass). */
+
+:root {
+  /* Surfaces */
+  --bg: #e8e8e4; /* page background, warm grey */
+  --frame: #ffffff; /* card / panel surface */
+
+  /* Text */
+  --ink: #2c2c29; /* primary text */
+  --soft: #76766f; /* secondary / muted text */
+
+  /* Borders */
+  --line: #d4d4cf; /* hairline borders */
+
+  /* Accent (primary action) */
+  --accent: oklch(0.55 0.12 250);
+  --accent-fill: oklch(0.955 0.022 250);
+
+  /* State */
+  --bad: oklch(0.58 0.16 25); /* error */
+
+  /* Type + shape */
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-card: 14px;
+  --radius-btn: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 40px 20px 80px;
+}
+
+.app-header {
+  text-align: center;
+  max-width: 520px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+.app-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+
+.lede {
+  color: var(--soft);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Mobile-first workspace: a vertical stack, centered. */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  max-width: 300px; /* mobile canvas width from the wireframe */
+}
+
+/* Desktop expands the canvas (per the wireframe's "Mobile 300px · Desktop 980px"). */
+@media (min-width: 768px) {
+  .workspace {
+    max-width: 560px;
+  }
+}
+
+.image-card {
+  margin: 0;
+  width: 100%;
+  background: var(--frame);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  aspect-ratio: 1408 / 768; /* match the sample photo to avoid layout shift */
+}
+
+#room-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Distinct name so the active image animates as its own element under View Transitions. */
+  view-transition-name: room-image;
+}
+
+.btn-primary {
+  font: 600 13px/1 var(--font-sans);
+  color: var(--accent);
+  background: var(--accent-fill);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-btn);
+  padding: 11px 18px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+.btn-primary:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.error-box {
+  max-width: 560px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-btn);
+  color: var(--bad);
+  background: color-mix(in oklch, var(--bad) 8%, var(--frame));
+  font-size: 13px;
+}
+
+/* Respect reduced-motion: drop the cross-fade entirely (meaning is carried by the swap). */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

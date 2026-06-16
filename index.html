@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Space Makeover Visualizer</title>
+    <meta name="description" content="Redesign a room in real time by talking to a live voice agent that sees your photo and edits it on command." />
+    <!-- Empty inline icon: avoids a 404 favicon request until a real icon ships in Pass 5 (PWA). -->
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+
+    <!-- Import map: resolves the only allowed dependency to its ESM build. No build step (H2). -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.run/@google/genai@2.8.0"
+        }
+      }
+    </script>
+
+    <!-- Entry module. All other modules are reached from here (no orphan code, H4). -->
+    <script type="module" src="js/main.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <p class="eyebrow">Space Makeover Visualizer</p>
+      <h1>Redesign your room, out loud.</h1>
+      <p class="lede">Pass 0 — walking skeleton. A sample room, one edit, the full stack wired end to end.</p>
+    </header>
+
+    <main class="workspace">
+      <!-- The room owns the screen. In Pass 0 the source is a hardcoded sample photo. -->
+      <figure class="image-card">
+        <img id="room-image" alt="The room being redesigned" />
+      </figure>
+
+      <!-- The single Pass 0 action. -->
+      <button id="edit-button" class="btn-primary" type="button">Try a sample edit</button>
+
+      <!-- Non-blocking error region. Populated via textContent only (H3). -->
+      <p id="error-box" class="error-box" role="alert" hidden></p>
+    </main>
+  </body>
+</html>
