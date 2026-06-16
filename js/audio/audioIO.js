@@ -10,13 +10,21 @@ const PLAYBACK_RATE = 24000; // Live API native-audio output rate
 // Start capturing the mic. Calls onPcmChunk(ArrayBuffer of Int16) for each chunk.
 // Returns a handle with stop(). Throws if permission denied / no device (caller handles).
 export async function startMicCapture(onPcmChunk) {
-  const ctx = new AudioContext({ sampleRate: RECORD_RATE });
-  await ctx.audioWorklet.addModule("js/audio/recorder-worklet.js");
-
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
-    video: false,
-  });
+  let ctx;
+  let stream;
+  try {
+    ctx = new AudioContext({ sampleRate: RECORD_RATE });
+    await ctx.audioWorklet.addModule("js/audio/recorder-worklet.js");
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      video: false,
+    });
+  } catch (err) {
+    // Don't leak the AudioContext if setup/permission fails (browsers cap concurrent contexts).
+    stream?.getTracks().forEach((t) => t.stop());
+    await ctx?.close().catch(() => {});
+    throw err;
+  }
 
   const source = ctx.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(ctx, "pcm-recorder");
@@ -43,6 +51,7 @@ export class PcmPlayer {
   }
 
   enqueue(arrayBuffer) {
+    if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {}); // iOS autoplay gate
     const int16 = new Int16Array(arrayBuffer);
     const f32 = new Float32Array(int16.length);
     for (let i = 0; i < int16.length; i++) f32[i] = int16[i] / 0x8000; // Int16 → Float32

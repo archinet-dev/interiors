@@ -40,7 +40,11 @@ const server = Bun.serve({
     //    The browser never holds the key (H1); the key lives only in this Bun process.
     if (path.startsWith("/api/genai/ws/")) {
       const upstreamPath = path.slice("/api/genai".length); // /ws/google.ai.generativelanguage...
-      const upstreamUrl = `${GEMINI_WS_ORIGIN}${upstreamPath}?key=${KEY}`;
+      // Preserve any client query params, drop the placeholder key, and set the real key.
+      const params = new URLSearchParams(url.search);
+      params.delete("key");
+      params.set("key", KEY);
+      const upstreamUrl = `${GEMINI_WS_ORIGIN}${upstreamPath}?${params}`;
       if (server.upgrade(req, { data: { upstreamUrl } })) return; // success → undefined
       return new Response("WebSocket upgrade failed", { status: 426 });
     }
@@ -48,8 +52,10 @@ const server = Bun.serve({
     // 1) REST PROXY — forward /api/genai/* to Gemini with the key injected.
     if (path.startsWith("/api/genai/")) {
       const upstreamPath = path.slice("/api/genai".length);
-      // Drop any client-supplied ?key= — we always set the real key server-side.
-      const search = url.search.replace(/([?&])key=[^&]*/g, "$1");
+      // Preserve client query params but drop any client-supplied key (we set it server-side).
+      const params = new URLSearchParams(url.search);
+      params.delete("key");
+      const search = params.toString() ? `?${params}` : "";
       const upstream = await fetch(GEMINI_ORIGIN + upstreamPath + search, {
         method: req.method,
         headers: {
@@ -106,6 +112,7 @@ const server = Bun.serve({
       };
       up.onmessage = (e) => ws.send(e.data); // upstream → client (text or ArrayBuffer)
       up.onerror = () => {
+        queue.length = 0; // never sent — free buffered frames
         try { ws.close(1011, "upstream error"); } catch {}
       };
       up.onclose = (e) => {

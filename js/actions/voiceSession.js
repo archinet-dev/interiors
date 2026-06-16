@@ -45,6 +45,7 @@ const editImageTool = {
 let session = null;
 let mic = null;
 let player = null;
+let handlingTool = false; // serialize tool-call handling across concurrent onmessage calls
 
 // Open the Live session and start streaming the mic. Idempotent.
 export async function startVoiceSession() {
@@ -89,6 +90,11 @@ export async function startVoiceSession() {
         audio: { data: arrayBufferToBase64(pcmBuffer), mimeType: "audio/pcm;rate=16000" },
       });
     });
+    // If the session was stopped while the mic permission dialog was up, don't leave it running.
+    if (!session) {
+      mic.stop();
+      mic = null;
+    }
   } catch (err) {
     // Expected user conditions (denied/no mic) are warnings; anything else is a real error.
     const expected = ["NotAllowedError", "SecurityError", "NotFoundError"].includes(err?.name);
@@ -106,6 +112,7 @@ export async function stopVoiceSession() {
   mic = null;
   player = null;
   session = null;
+  handlingTool = false;
   setState({ voiceStatus: "idle", voiceActive: false });
 }
 
@@ -120,25 +127,31 @@ export function sendUserText(text) {
 
 async function onLiveMessage(msg) {
   // 1) Tool call → run the real edit, report the result, then send the new image as context.
+  //    Serialize across concurrent onmessage invocations so two edits can't interleave.
   const calls = msg.toolCall?.functionCalls;
-  if (calls?.length) {
-    setState({ voiceStatus: "thinking" });
-    for (const fc of calls) {
-      if (fc.name !== "editImage") continue;
-      const prompt = fc.args?.prompt || "";
-      appendTranscript("tool", `editImage("${prompt}")`);
-      const ok = await runEdit(prompt);
-      session?.sendToolResponse({
-        functionResponses: [
-          { id: fc.id, name: fc.name, response: ok ? { result: "success", applied: prompt } : { result: "error" } },
-        ],
-      });
-      if (ok) {
-        const { activeImage } = getState();
-        if (activeImage) await sendImageContext(activeImage, "Here is the updated room after that edit.");
+  if (calls?.length && !handlingTool) {
+    handlingTool = true;
+    if (getState().voiceActive) setState({ voiceStatus: "thinking" });
+    try {
+      for (const fc of calls) {
+        if (fc.name !== "editImage") continue;
+        const prompt = fc.args?.prompt || "";
+        appendTranscript("tool", `editImage("${prompt}")`);
+        const ok = await runEdit(prompt);
+        session?.sendToolResponse({
+          functionResponses: [
+            { id: fc.id, name: fc.name, response: ok ? { result: "success", applied: prompt } : { result: "error" } },
+          ],
+        });
+        if (ok) {
+          const { activeImage } = getState();
+          if (activeImage) await sendImageContext(activeImage, "Here is the updated room after that edit.");
+        }
       }
+    } finally {
+      handlingTool = false;
+      if (getState().voiceActive) setState({ voiceStatus: "listening" });
     }
-    setState({ voiceStatus: "listening" });
   }
 
   // 2) Transcriptions (input + output captions).

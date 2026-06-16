@@ -55,6 +55,7 @@ class VoiceIndicator extends HTMLElement {
   #unsub = null;
   #lastTranscriptLen = -1;
   #lastStatus = null;
+  #lastVoiceActive = null;
 
   constructor() {
     super();
@@ -92,12 +93,13 @@ class VoiceIndicator extends HTMLElement {
   }
 
   render(state) {
-    // Status + mic pressed state.
-    if (state.voiceStatus !== this.#lastStatus || state.voiceActive !== undefined) {
+    // Status + mic pressed state (update only when status or active-ness actually changed).
+    if (state.voiceStatus !== this.#lastStatus || state.voiceActive !== this.#lastVoiceActive) {
       this.$status.textContent = STATUS_LABEL[state.voiceStatus] || "Tap to talk";
       this.$mic.setAttribute("aria-pressed", String(state.voiceActive));
       this.$mic.dataset.state = state.voiceActive ? state.voiceStatus : "idle";
       this.#lastStatus = state.voiceStatus;
+      this.#lastVoiceActive = state.voiceActive;
     }
 
     // Transcript — re-render only when it grew/changed.

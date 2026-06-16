@@ -77,10 +77,14 @@ class BeforeAfter extends HTMLElement {
       onMove(e.clientX);
     });
     this.$wrap.addEventListener("pointermove", (e) => { if (this.#dragging) onMove(e.clientX); });
-    this.$wrap.addEventListener("pointerup", (e) => {
+    const endDrag = (e) => {
       this.#dragging = false;
       try { this.$wrap.releasePointerCapture(e.pointerId); } catch {}
-    });
+    };
+    this.$wrap.addEventListener("pointerup", endDrag);
+    this.$wrap.addEventListener("pointercancel", endDrag); // touch interrupted → don't stick
+
+
     // Keyboard accessibility on the divider.
     this.$divider.addEventListener("keydown", (e) => {
       if (e.key === "ArrowLeft") { this.#setSplit(this.#split - 4); e.preventDefault(); }

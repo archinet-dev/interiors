@@ -29,8 +29,10 @@ export async function runEdit(prompt) {
     const model = editingModel === "pro" ? MODELS.pro : MODELS.flash;
     const edited = await apiEditImage(activeImage, prompt, model);
     console.log("[editImage] edit complete:", edited.type, edited.size, "bytes");
+    // recordEdit sets activeImage + history; clear the in-flight flag in the SAME synchronous
+    // run (batched into one render) so there's never a frame with the flag off but the old image.
+    recordEdit(prompt, edited);
     setState({ editingInFlight: false });
-    recordEdit(prompt, edited); // appends to history (branching if needed) + sets activeImage + persists
     return true;
   } catch (err) {
     // Surface the complete error to the user (per project rule) and clear the in-flight flag.
