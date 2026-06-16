@@ -1,8 +1,8 @@
 # PRE-CODE VERIFICATION REPORT — Space Makeover Visualizer
 
-**Date:** 2026-06-15
-**Status:** ⏸ Awaiting sign-off. No source code written. (Per `PROMPT.md`: "STOP after the verification report. Wait for sign-off before writing code.")
-**Method:** Three parallel research agents fetched live docs (npm registry, ai.google.dev, MDN, web.dev/baseline, caniuse). Findings consolidated and reconciled below. Nothing here is from training data alone.
+**Date:** 2026-06-15 (updated post-Pass-0 when `PROMPT.md` added **H6: Bun, not Node** + gate item #4 RUNTIME)
+**Status:** ✅ Signed off; Pass 0 built and re-verified under Bun.
+**Method:** Parallel research agents fetched live docs (npm registry, ai.google.dev, MDN, web.dev/baseline, caniuse, bun.com/docs). Findings consolidated and reconciled below. Nothing here is from training data alone.
 
 ---
 
@@ -65,11 +65,23 @@ if (message.toolCall) {
 
 ---
 
+## 3.5 RUNTIME (Bun) — ✅ Gate item #4 (added with H6)
+
+Bun installed locally: **`bun --version` → 1.3.14** (≥1.2 ✓). Verified the current API surface against bun.com/docs before porting:
+- **`Bun.serve({ port, fetch(req) })`** returning a web `Response` is the idiomatic server (not `node:http`/`createServer`). `server.url` / `server.port` report the bound address.
+- **`new Response(Bun.file(path))`** auto-sets `Content-Type` from the extension — confirmed `text/javascript;charset=utf-8` for `.js`, so `<script type="module">` imports load with no manual MIME map. `Bun.file` is lazy → guard with `await file.exists()`.
+- **`.env` is auto-loaded** by Bun (no `dotenv`); `process.env.GEMINI_API_KEY` and `Bun.env.*` are both populated. Key stays server-side (H1).
+- **`import.meta.dir`** for the module directory; **`node:path`** (`join`/`normalize`) works under Bun's compat layer.
+- Forward the proxy body with **`await req.arrayBuffer()`** (buffered — no `duplex` needed for JSON/image payloads).
+- **Version pin:** `engines.bun` is *not* enforced by Bun (open issue), so pinned via **`"packageManager": "bun@1.3.14"`** in `package.json`, with a documentary `engines.bun: ">=1.2.0"`.
+
+**Decision:** the dev server + Gemini proxy live in **`server/index.js`** under `Bun.serve()`, served-from-root but the `/server/` dir and `.env` are blocked from static serving. No Node, no npm packages, no `python -m http.server`. (This replaced the initial Node `server.js`, written before H6 existed.)
+
 ## 4. AMBIGUITIES / DECISIONS FOR SIGN-OFF
 
 These were not explicit in `PROMPT.md`. My proposed default is given for each; flag any you want changed.
 
-1. **Runtime/host for Pass 0 testing.** Spec says key is injected by AI Studio runtime OR behind a self-host proxy. For local dev (`python3 -m http.server` over localhost) there is no injected key and no proxy yet. **How do you want Pass 0 to obtain the key locally** without violating H1 (no key in any client file)? Options: (a) you paste a key into a session-only `sessionStorage`/prompt at runtime that is never written to disk; (b) I stand up a tiny local proxy now; (c) you run inside AI Studio. **My default: (a)** — a runtime-entered, never-persisted key read by `apiClient.js`, with a one-line proxy swap documented. **This is the only item that can block Pass 0.**
+1. **Runtime/host for Pass 0 testing.** Spec says the key is injected by the AI Studio runtime OR sits behind a self-host proxy. **RESOLVED:** user chose a local proxy. Now mandated by **H6** to be a **Bun** proxy (`server/index.js`, `Bun.serve()`) that reads `GEMINI_API_KEY` from the auto-loaded `.env` server-side — no key in any client file (H1).
 
 2. **SDK delivery without a build step.** No bundler allowed. **Default:** load `@google/genai@2.8.0` via an import-map pointing at an ESM CDN (esm.run / esm.sh), so `import { GoogleGenAI } from "@google/genai"` resolves natively.
 
