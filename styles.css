@@ -133,7 +133,9 @@ body {
   justify-content: center;
 }
 
-#capture {
+#capture,
+#voice,
+#history {
   width: 100%;
 }
 

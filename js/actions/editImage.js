@@ -6,6 +6,7 @@
 
 import { getState, setState } from "../state.js";
 import { editImage as apiEditImage, MODELS } from "../apiClient.js";
+import { recordEdit } from "./history.js";
 
 // Run an edit against the current activeImage with the given prompt.
 // Guards against concurrent edits and a missing image. Returns true on success, false otherwise
@@ -28,7 +29,8 @@ export async function runEdit(prompt) {
     const model = editingModel === "pro" ? MODELS.pro : MODELS.flash;
     const edited = await apiEditImage(activeImage, prompt, model);
     console.log("[editImage] edit complete:", edited.type, edited.size, "bytes");
-    setState({ activeImage: edited, editingInFlight: false });
+    setState({ editingInFlight: false });
+    recordEdit(prompt, edited); // appends to history (branching if needed) + sets activeImage + persists
     return true;
   } catch (err) {
     // Surface the complete error to the user (per project rule) and clear the in-flight flag.

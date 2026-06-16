@@ -69,5 +69,12 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
 - **Key handling (H1):** the Live **WebSocket** is reverse-proxied by the Bun server
   (`/api/genai/ws/*`), which injects the key into the upstream `wss://` — the browser never holds it.
 
-_Not yet built:_ edit history + undo (Pass 3), before/after + Pro render (Pass 4), themes/PWA polish
-(Pass 5).
+### Pass 3 — Edit History + Undo/Redo ✅
+- **History:** `actions/history.js` keeps a list + pointer; entry 0 is the original. Each edit (button
+  or voice) appends; undo/redo move the pointer; clicking a `<edit-history>` filmstrip thumbnail
+  reverts; editing from a past point branches (truncate forward + append).
+- **Persistence:** `db/idb.js` (tiny IndexedDB wrapper, no library) stores the session so a reload
+  restores the filmstrip + active image; "New photo" clears it.
+- **Keyboard:** Cmd/Ctrl+Z undo, Shift+Cmd/Ctrl+Z redo (plus Undo/Redo buttons).
+
+_Not yet built:_ before/after + Pro render (Pass 4), themes/PWA polish (Pass 5).

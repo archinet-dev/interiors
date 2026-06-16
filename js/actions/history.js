@@ -1,0 +1,87 @@
+// actions/history.js — the edit-history model: a list + a pointer.
+//
+// Model (one coherent scheme):
+//  - history: [{ id, prompt, image: Blob, ts }], oldest → newest. Entry 0 is the original photo.
+//  - historyIndex: the currently-active entry. activeImage always mirrors history[historyIndex].image.
+//  - undo/redo move the pointer (non-destructive — you can redo).
+//  - Making a NEW edit while not at the end truncates the forward entries, then appends (branch).
+//  - Clicking a thumbnail moves the pointer (revert). Continuing from there branches on the next edit.
+// All mutations persist the session to IndexedDB so a refresh restores it.
+
+import { getState, setState } from "../state.js";
+import { saveSession, clearSession } from "../db/idb.js";
+
+let nextId = 1;
+const newId = () => `e${nextId++}`;
+
+// Persist the current history slice (fire-and-forget; failures are logged, not fatal).
+function persist() {
+  const { history, historyIndex } = getState();
+  saveSession({ history, historyIndex }).catch((err) => console.warn("[history] persist failed:", err));
+}
+
+// Start a fresh history from an original photo (called when a new source photo is set).
+export function resetHistory(originalBlob) {
+  const entry = { id: newId(), prompt: "Original", image: originalBlob, ts: Date.now() };
+  setState({ history: [entry], historyIndex: 0, activeImage: originalBlob });
+  persist();
+}
+
+// Append a successful edit. Branches (drops forward history) if we're not at the end.
+export function recordEdit(prompt, imageBlob) {
+  const { history, historyIndex } = getState();
+  const kept = history.slice(0, historyIndex + 1); // truncate forward (branch)
+  const entry = { id: newId(), prompt, image: imageBlob, ts: Date.now() };
+  const next = [...kept, entry];
+  setState({ history: next, historyIndex: next.length - 1, activeImage: imageBlob });
+  persist();
+}
+
+export function undo() {
+  const { history, historyIndex } = getState();
+  if (historyIndex <= 0) return;
+  const i = historyIndex - 1;
+  setState({ historyIndex: i, activeImage: history[i].image });
+  persist();
+}
+
+export function redo() {
+  const { history, historyIndex } = getState();
+  if (historyIndex >= history.length - 1) return;
+  const i = historyIndex + 1;
+  setState({ historyIndex: i, activeImage: history[i].image });
+  persist();
+}
+
+// Revert to a specific entry (filmstrip click).
+export function jumpTo(index) {
+  const { history } = getState();
+  if (index < 0 || index >= history.length) return;
+  setState({ historyIndex: index, activeImage: history[index].image });
+  persist();
+}
+
+// Wipe history + the persisted session (called on "New photo").
+export function clearHistory() {
+  setState({ history: [], historyIndex: -1 });
+  clearSession().catch((err) => console.warn("[history] clear failed:", err));
+}
+
+// Restore a persisted session on load. Returns true if one was restored.
+export function applyRestoredSession(session) {
+  if (!session?.history?.length) return false;
+  const idx = Math.min(Math.max(session.historyIndex ?? session.history.length - 1, 0), session.history.length - 1);
+  const original = session.history[0].image;
+  setState({
+    sourceImage: original,
+    history: session.history,
+    historyIndex: idx,
+    activeImage: session.history[idx].image,
+  });
+  // Keep id generator ahead of any restored ids so new ids don't collide.
+  for (const e of session.history) {
+    const n = Number(String(e.id).replace(/^e/, ""));
+    if (Number.isFinite(n) && n >= nextId) nextId = n + 1;
+  }
+  return true;
+}

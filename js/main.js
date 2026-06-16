@@ -12,6 +12,8 @@ import { getState, setState, subscribe } from "./state.js";
 import { runEdit } from "./actions/editImage.js";
 import { setPhoto } from "./actions/setPhoto.js";
 import { stopVoiceSession } from "./actions/voiceSession.js";
+import { undo, redo, clearHistory, applyRestoredSession } from "./actions/history.js";
+import { loadSession } from "./db/idb.js";
 
 const SAMPLE_PROMPT = "Add a large leafy potted houseplant in the empty corner of the room, matching the existing lighting and perspective.";
 
@@ -19,9 +21,12 @@ const SAMPLE_PROMPT = "Add a large leafy potted houseplant in the empty corner o
 const capture = document.getElementById("capture");
 const imageView = document.getElementById("image-view");
 const voice = document.getElementById("voice");
+const historyStrip = document.getElementById("history");
 const actions = document.getElementById("actions");
 const img = document.getElementById("room-image");
 const editButton = document.getElementById("edit-button");
+const undoButton = document.getElementById("undo-button");
+const redoButton = document.getElementById("redo-button");
 const retakeButton = document.getElementById("retake-button");
 const errorBox = document.getElementById("error-box");
 
@@ -39,12 +44,17 @@ function render(state) {
   capture.hidden = hasPhoto;
   imageView.hidden = !hasPhoto;
   voice.hidden = !hasPhoto;
+  historyStrip.hidden = !hasPhoto;
   actions.hidden = !hasPhoto;
 
   // Edit button reflects editing status.
   editButton.disabled = state.editingInFlight;
   editButton.textContent = state.editingInFlight ? "Editing…" : "Try a sample edit";
   retakeButton.disabled = state.editingInFlight;
+
+  // Undo/Redo enablement mirrors the history pointer.
+  undoButton.disabled = state.editingInFlight || state.historyIndex <= 0;
+  redoButton.disabled = state.editingInFlight || state.historyIndex >= state.history.length - 1;
 
   // Error region (textContent only — never innerHTML on dynamic strings, H3).
   if (state.error) {
@@ -94,13 +104,33 @@ function swapImage(blob) {
 capture.addEventListener("photo", (e) => setPhoto(e.detail.blob));
 // Edit the current photo.
 editButton.addEventListener("click", () => runEdit(SAMPLE_PROMPT));
-// Retake: stop any voice session, then clear the photo to return to the capture surface.
+// Undo / Redo buttons.
+undoButton.addEventListener("click", () => undo());
+redoButton.addEventListener("click", () => redo());
+
+// Retake: stop any voice session, clear the persisted session, and return to the capture surface.
 retakeButton.addEventListener("click", () => {
   stopVoiceSession();
+  clearHistory();
   setState({ sourceImage: null, activeImage: null, error: null });
+});
+
+// Keyboard: Cmd/Ctrl+Z = undo, Shift+Cmd/Ctrl+Z = redo (only when a photo is loaded).
+addEventListener("keydown", (e) => {
+  const meta = e.metaKey || e.ctrlKey;
+  if (!meta || e.key.toLowerCase() !== "z") return;
+  if (!getState().sourceImage || getState().editingInFlight) return;
+  e.preventDefault();
+  if (e.shiftKey) redo();
+  else undo();
 });
 
 subscribe(render);
 
-// Initial paint (capture surface; no photo yet).
-render(getState());
+// Restore a persisted session (if any), then initial paint.
+loadSession()
+  .then((session) => {
+    if (applyRestoredSession(session)) console.log("[main] restored session:", session.history.length, "entries");
+  })
+  .catch((err) => console.warn("[main] could not restore session:", err))
+  .finally(() => render(getState()));

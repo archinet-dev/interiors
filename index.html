@@ -40,9 +40,14 @@
       <!-- Voice assistant: the primary edit affordance (Pass 2). Shown once a photo exists. -->
       <voice-indicator id="voice" hidden></voice-indicator>
 
+      <!-- Edit-history filmstrip (Pass 3). Shown once a photo exists. -->
+      <edit-history id="history" hidden></edit-history>
+
       <!-- Actions for an existing photo. -->
       <div class="actions" id="actions" hidden>
         <button id="edit-button" class="btn-primary" type="button">Try a sample edit</button>
+        <button id="undo-button" class="btn-secondary" type="button" aria-keyshortcuts="Meta+Z Control+Z">Undo</button>
+        <button id="redo-button" class="btn-secondary" type="button" aria-keyshortcuts="Shift+Meta+Z Shift+Control+Z">Redo</button>
         <button id="retake-button" class="btn-secondary" type="button">New photo</button>
       </div>
 
@@ -53,5 +58,6 @@
     <!-- Custom elements. -->
     <script type="module" src="js/components/camera-capture.js"></script>
     <script type="module" src="js/components/voice-indicator.js"></script>
+    <script type="module" src="js/components/edit-history.js"></script>
   </body>
 </html>

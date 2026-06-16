@@ -16,7 +16,8 @@
 const INITIAL_STATE = {
   sourceImage: null, // Blob — the original captured/sample photo
   activeImage: null, // Blob — the current (possibly edited) image
-  history: [], // [{ id, prompt, image, ts }] — populated in Pass 3
+  history: [], // [{ id, prompt, image: Blob, ts }] — edit history (Pass 3)
+  historyIndex: -1, // pointer into history; activeImage mirrors history[historyIndex] (Pass 3)
   voiceStatus: "idle", // 'idle' | 'listening' | 'thinking' | 'speaking' (Pass 2)
   voiceActive: false, // true while a Live voice session is open (Pass 2)
   voiceTranscript: [], // input + output captions — [{ role, text, ts }] (Pass 2)
