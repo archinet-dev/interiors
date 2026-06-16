@@ -5,9 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Space Makeover Visualizer</title>
     <meta name="description" content="Redesign a room in real time by talking to a live voice agent that sees your photo and edits it on command." />
-    <!-- Empty inline icon: avoids a 404 favicon request until a real icon ships in Pass 5 (PWA). -->
-    <link rel="icon" href="data:," />
+    <link rel="icon" href="assets/icon-192.png" />
     <link rel="stylesheet" href="styles.css" />
+
+    <!-- PWA: installable, offline shell (Pass 5). -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/icon-192.png" />
+    <meta name="theme-color" content="#e8e8e4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#19191b" media="(prefers-color-scheme: dark)" />
 
     <!-- Import map: resolves the only allowed dependency to its ESM build. No build step (H2). -->
     <script type="importmap">
@@ -23,6 +28,7 @@
   </head>
   <body>
     <header class="app-header">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Theme">🌗</button>
       <p class="eyebrow">Space Makeover Visualizer</p>
       <h1>Redesign your room, out loud.</h1>
       <p class="lede">Photograph or upload a room, then redesign it with a single tap.</p>
@@ -72,9 +78,13 @@
         </label>
       </div>
 
-      <!-- Non-blocking error region. Populated via textContent only (H3). -->
-      <p id="error-box" class="error-box" role="alert" hidden></p>
     </main>
+
+    <!-- Non-blocking error toast (Pass 5) — native Popover API. Message set via textContent (H3). -->
+    <div id="toast" popover="manual" class="toast" role="alert">
+      <span id="toast-message" class="toast-message"></span>
+      <button id="toast-close" class="toast-close" type="button" aria-label="Dismiss">✕</button>
+    </div>
 
     <!-- Custom elements. -->
     <script type="module" src="js/components/camera-capture.js"></script>
@@ -82,5 +92,8 @@
     <script type="module" src="js/components/edit-history.js"></script>
     <script type="module" src="js/components/before-after.js"></script>
     <script type="module" src="js/settings.js"></script>
+    <script type="module" src="js/theme.js"></script>
+    <script type="module" src="js/toast.js"></script>
+    <script type="module" src="js/pwa.js"></script>
   </body>
 </html>

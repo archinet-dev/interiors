@@ -31,7 +31,6 @@ const editButton = document.getElementById("edit-button");
 const undoButton = document.getElementById("undo-button");
 const redoButton = document.getElementById("redo-button");
 const retakeButton = document.getElementById("retake-button");
-const errorBox = document.getElementById("error-box");
 
 // --- Blob-URL lifecycle tracking (every createObjectURL needs a matching revoke) ---
 let renderedBlob = null; // the Blob currently shown (compare by identity, NOT URL string)
@@ -66,14 +65,7 @@ function render(state) {
   undoButton.disabled = state.editingInFlight || state.historyIndex <= 0;
   redoButton.disabled = state.editingInFlight || state.historyIndex >= state.history.length - 1;
 
-  // Error region (textContent only — never innerHTML on dynamic strings, H3).
-  if (state.error) {
-    errorBox.textContent = state.error;
-    errorBox.hidden = false;
-  } else {
-    errorBox.textContent = "";
-    errorBox.hidden = true;
-  }
+  // Errors are surfaced as a non-blocking toast (see js/toast.js), not inline.
 
   // Image swap — only when the active Blob actually changed (identity compare).
   if (state.activeImage && state.activeImage !== renderedBlob) {

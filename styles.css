@@ -4,31 +4,44 @@
    Only the tokens Pass 0 actually uses are defined here (the system grows per pass). */
 
 :root {
+  /* Both themes in one var-swap via light-dark(): each token gives (light, dark).
+     color-scheme decides which side is used; it follows the OS by default, and the manual
+     toggle overrides it by setting color-scheme on [data-theme] below. */
+  color-scheme: light dark;
+
   /* Surfaces */
-  --bg: #e8e8e4; /* page background, warm grey */
-  --frame: #ffffff; /* card / panel surface */
+  --bg: light-dark(#e8e8e4, #19191b); /* page background */
+  --frame: light-dark(#ffffff, #242528); /* card / panel surface */
 
   /* Text */
-  --ink: #2c2c29; /* primary text */
-  --soft: #76766f; /* secondary / muted text */
+  --ink: light-dark(#2c2c29, #ececea); /* primary text */
+  --soft: light-dark(#76766f, #9b9b94); /* secondary / muted text */
 
   /* Borders */
-  --line: #d4d4cf; /* hairline borders */
-  --line2: #a0a09a; /* stronger border (interactive) */
-  --dash: #b7b7b1; /* dashed border for capture/placeholder */
+  --line: light-dark(#d4d4cf, #3a3a3e); /* hairline borders */
+  --line2: light-dark(#a0a09a, #56565c); /* stronger border (interactive) */
+  --dash: light-dark(#b7b7b1, #46464b); /* dashed border for capture/placeholder */
 
-  /* Accent (primary action) */
-  --accent: oklch(0.55 0.12 250);
-  --accent-fill: oklch(0.955 0.022 250);
+  /* Accent (primary action) — brighter in dark for contrast */
+  --accent: light-dark(oklch(0.55 0.12 250), oklch(0.72 0.12 250));
+  --accent-fill: light-dark(oklch(0.955 0.022 250), oklch(0.34 0.05 250));
 
   /* State */
-  --bad: oklch(0.58 0.16 25); /* error */
+  --bad: light-dark(oklch(0.55 0.17 25), oklch(0.7 0.17 25)); /* error */
 
   /* Type + shape */
   --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --radius-card: 14px;
   --radius-btn: 8px;
+}
+
+/* Manual theme override — forces one side of every light-dark() token. */
+[data-theme="light"] {
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 * {
@@ -211,22 +224,75 @@ body {
   outline-offset: 2px;
 }
 
-.error-box {
-  max-width: 560px;
-  margin: 0;
-  padding: 10px 14px;
+/* Theme toggle (top-right of the header). */
+.app-header {
+  position: relative;
+}
+.theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line2);
+  background: var(--frame);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Non-blocking error toast (Popover API). Positioned bottom-center; no backdrop. */
+.toast {
+  margin: 0 auto;
+  inset: auto 0 24px 0; /* bottom-center */
+  width: max-content;
+  max-width: min(92vw, 480px);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
   border: 1px solid var(--bad);
   border-radius: var(--radius-btn);
   color: var(--bad);
-  background: color-mix(in oklch, var(--bad) 8%, var(--frame));
+  background: color-mix(in oklch, var(--bad) 12%, var(--frame));
   font-size: 13px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+.toast:popover-open {
+  /* animate in (respects reduced-motion sweep below) */
+  animation: toast-in 0.2s ease-out;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast-message {
+  flex: 1;
+}
+.toast-close {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
 }
 
-/* Respect reduced-motion: drop the cross-fade entirely (meaning is carried by the swap). */
+/* Respect reduced-motion: drop the cross-fade and all decorative animation (meaning is carried
+   by the state change itself, not the motion). */
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+  .toast:popover-open {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
   }
 }

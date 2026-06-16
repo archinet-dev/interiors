@@ -85,4 +85,19 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
   (`gemini-3-pro-image-preview`, up to 4K). The choice applies to button + voice edits; the Pro
   cost/quality tradeoff is surfaced as a hint.
 
-_Not yet built:_ themes/PWA polish (Pass 5).
+### Pass 5 — Polish ✅
+- **Theming:** light/dark via `light-dark()` design tokens + `color-scheme`; a header toggle cycles
+  system → light → dark and persists in `localStorage`.
+- **Errors:** non-blocking Popover-API toasts (`js/toast.js`) driven by `state.error`.
+- **Motion:** a `prefers-reduced-motion` sweep disables View Transitions and decorative animation;
+  JS guards skip `startViewTransition`.
+- **PWA:** `manifest.webmanifest` + canvas-generated 192/512 icons + a service worker (`sw.js`) that
+  precaches the app shell and serves it offline (inference still needs network); `/api/*` is never cached.
+
+**All five passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
+it via function calling → review the persisted history (undo/redo/branch) → compare before/after →
+opt into Pro renders → installable, themed, and accessible.
+
+### Known manual-verification items
+Real camera capture, live mic/speaker audio, reduced-motion under OS emulation, and Lighthouse
+(a11y ≥95 / 4G first paint) are code-verified here and flagged for a hands-on device/Lighthouse pass.
