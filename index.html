@@ -59,7 +59,14 @@
       <!-- Voice assistant: the primary edit affordance (Pass 2). Shown once a photo exists. -->
       <voice-indicator id="voice" hidden></voice-indicator>
 
-      <!-- Suggestion chips (wireframe §K): the agent's "two ways in" — tap a quick edit or speak. -->
+      <!-- Desktop "three directions" cards (wireframe §K3): the agent's richer opener.
+           Shown on wide viewports; mobile uses the compact chips below instead. -->
+      <section class="directions" id="directions" hidden aria-label="Suggested directions">
+        <p class="dir-intro">Three directions I’d try for this room — tap one, or just say it.</p>
+        <div class="dir-grid" id="dir-grid"></div>
+      </section>
+
+      <!-- Suggestion chips (wireframe §K2): the compact "two ways in" — tap a quick edit or speak. -->
       <div class="chips" id="suggestions" hidden aria-label="Suggested edits"></div>
 
       <!-- Edit-history filmstrip (Pass 3). Shown once a photo exists. -->
