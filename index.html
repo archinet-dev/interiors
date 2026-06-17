@@ -14,11 +14,13 @@
     <meta name="theme-color" content="#e8e8e4" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#19191b" media="(prefers-color-scheme: dark)" />
 
-    <!-- Import map: resolves the only allowed dependency to its ESM build. No build step (H2). -->
+    <!-- Import map: resolves the only allowed dependency to its ESM build. No build step (H2).
+         esm.sh bundles transitive deps into the served module (unlike esm.run, which fetched
+         p-retry separately and intermittently 404'd), so the SDK loads as a single reliable request. -->
     <script type="importmap">
       {
         "imports": {
-          "@google/genai": "https://esm.run/@google/genai@2.8.0"
+          "@google/genai": "https://esm.sh/@google/genai@2.8.0"
         }
       }
     </script>
@@ -38,6 +40,14 @@
       <!-- Capture surface: camera / upload / drag-drop / sample. Shown until a photo is set. -->
       <camera-capture id="capture"></camera-capture>
 
+      <!-- Top bar (wireframe §C): Compare · Download · Share · Settings — never covers the canvas. -->
+      <div class="topbar" id="topbar" hidden>
+        <button id="compare-button" class="btn-secondary" type="button" aria-pressed="false">Compare</button>
+        <button id="download-button" class="btn-secondary" type="button">↧ Download</button>
+        <button id="share-button" class="btn-secondary" type="button">⤴ Share</button>
+        <button id="settings-button" class="btn-secondary" type="button" popovertarget="settings-panel">⚙ Settings</button>
+      </div>
+
       <!-- The room view. Shown once a photo exists. -->
       <figure class="image-card" id="image-view" hidden>
         <img id="room-image" alt="The room being redesigned" />
@@ -49,19 +59,20 @@
       <!-- Voice assistant: the primary edit affordance (Pass 2). Shown once a photo exists. -->
       <voice-indicator id="voice" hidden></voice-indicator>
 
+      <!-- Suggestion chips (wireframe §K): the agent's "two ways in" — tap a quick edit or speak. -->
+      <div class="chips" id="suggestions" hidden aria-label="Suggested edits"></div>
+
       <!-- Edit-history filmstrip (Pass 3). Shown once a photo exists. -->
       <edit-history id="history" hidden></edit-history>
 
       <!-- Brief Pro hint (Pass 4). Shown only when the Pro model is selected. -->
       <p id="pro-hint" class="pro-hint" hidden>Pro render selected — higher quality, up to 4K, a little slower.</p>
 
-      <!-- Actions for an existing photo. -->
+      <!-- Primary actions for an existing photo (Compare/Download/Share/Settings live in the top bar). -->
       <div class="actions" id="actions" hidden>
         <button id="edit-button" class="btn-primary" type="button">Try a sample edit</button>
-        <button id="compare-button" class="btn-secondary" type="button" aria-pressed="false">Compare</button>
         <button id="undo-button" class="btn-secondary" type="button" aria-keyshortcuts="Meta+Z Control+Z">Undo</button>
         <button id="redo-button" class="btn-secondary" type="button" aria-keyshortcuts="Shift+Meta+Z Shift+Control+Z">Redo</button>
-        <button id="settings-button" class="btn-secondary" type="button" popovertarget="settings-panel">⚙ Settings</button>
         <button id="retake-button" class="btn-secondary" type="button">New photo</button>
       </div>
 
