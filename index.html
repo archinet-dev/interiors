@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Space Makeover Visualizer</title>
+    <meta name="description" content="Redesign a room in real time by talking to a live voice agent that sees your photo and edits it on command." />
+    <link rel="icon" href="assets/icon-192.png" />
+    <link rel="stylesheet" href="styles.css" />
+
+    <!-- PWA: installable, offline shell (Pass 5). -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/icon-192.png" />
+    <meta name="theme-color" content="#e8e8e4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#19191b" media="(prefers-color-scheme: dark)" />
+
+    <!-- Import map: resolves the only allowed dependency to its ESM build. No build step (H2). -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.run/@google/genai@2.8.0"
+        }
+      }
+    </script>
+
+    <!-- Entry module. All other modules are reached from here (no orphan code, H4). -->
+    <script type="module" src="js/main.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Theme">🌗</button>
+      <p class="eyebrow">Space Makeover Visualizer</p>
+      <h1>Redesign your room, out loud.</h1>
+      <p class="lede">Photograph or upload a room, then redesign it with a single tap.</p>
+    </header>
+
+    <main class="workspace">
+      <!-- Capture surface: camera / upload / drag-drop / sample. Shown until a photo is set. -->
+      <camera-capture id="capture"></camera-capture>
+
+      <!-- The room view. Shown once a photo exists. -->
+      <figure class="image-card" id="image-view" hidden>
+        <img id="room-image" alt="The room being redesigned" />
+      </figure>
+
+      <!-- Before/after comparison (Pass 4). Shown only while comparing. -->
+      <before-after id="compare-view" hidden></before-after>
+
+      <!-- Voice assistant: the primary edit affordance (Pass 2). Shown once a photo exists. -->
+      <voice-indicator id="voice" hidden></voice-indicator>
+
+      <!-- Edit-history filmstrip (Pass 3). Shown once a photo exists. -->
+      <edit-history id="history" hidden></edit-history>
+
+      <!-- Brief Pro hint (Pass 4). Shown only when the Pro model is selected. -->
+      <p id="pro-hint" class="pro-hint" hidden>Pro render selected — higher quality, up to 4K, a little slower.</p>
+
+      <!-- Actions for an existing photo. -->
+      <div class="actions" id="actions" hidden>
+        <button id="edit-button" class="btn-primary" type="button">Try a sample edit</button>
+        <button id="compare-button" class="btn-secondary" type="button" aria-pressed="false">Compare</button>
+        <button id="undo-button" class="btn-secondary" type="button" aria-keyshortcuts="Meta+Z Control+Z">Undo</button>
+        <button id="redo-button" class="btn-secondary" type="button" aria-keyshortcuts="Shift+Meta+Z Shift+Control+Z">Redo</button>
+        <button id="settings-button" class="btn-secondary" type="button" popovertarget="settings-panel">⚙ Settings</button>
+        <button id="retake-button" class="btn-secondary" type="button">New photo</button>
+      </div>
+
+      <!-- Settings popover (Pass 4) — native Popover API handles dismiss/focus. -->
+      <div id="settings-panel" popover class="settings-panel">
+        <h2 class="settings-title">Edit quality</h2>
+        <label class="model-opt">
+          <input type="radio" name="edit-model" value="flash" checked />
+          <span><strong>Flash</strong> — fast, great for iterating (default).</span>
+        </label>
+        <label class="model-opt">
+          <input type="radio" name="edit-model" value="pro" />
+          <span><strong>Pro</strong> — highest quality, up to 4K, slower &amp; costlier.</span>
+        </label>
+      </div>
+
+    </main>
+
+    <!-- Non-blocking error toast (Pass 5) — native Popover API. Message set via textContent (H3). -->
+    <div id="toast" popover="manual" class="toast" role="alert">
+      <span id="toast-message" class="toast-message"></span>
+      <button id="toast-close" class="toast-close" type="button" aria-label="Dismiss">✕</button>
+    </div>
+
+    <!-- Custom elements and side-effect modules are imported by js/main.js (single entry, no orphan code H4). -->
+  </body>
+</html>

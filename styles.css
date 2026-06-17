@@ -1,0 +1,298 @@
+/* styles.css — Pass 0 minimal, centered, responsive layout.
+   Design tokens come from DESIGN_TOKENS.md (extracted from the wireframes). The wireframe
+   palette is a neutral "paper" scaffold; richer oklch theming + light/dark arrive in Pass 5.
+   Only the tokens Pass 0 actually uses are defined here (the system grows per pass). */
+
+:root {
+  /* Both themes in one var-swap via light-dark(): each token gives (light, dark).
+     color-scheme decides which side is used; it follows the OS by default, and the manual
+     toggle overrides it by setting color-scheme on [data-theme] below. */
+  color-scheme: light dark;
+
+  /* Surfaces */
+  --bg: light-dark(#e8e8e4, #19191b); /* page background */
+  --frame: light-dark(#ffffff, #242528); /* card / panel surface */
+
+  /* Text */
+  --ink: light-dark(#2c2c29, #ececea); /* primary text */
+  --soft: light-dark(#76766f, #9b9b94); /* secondary / muted text */
+
+  /* Borders */
+  --line: light-dark(#d4d4cf, #3a3a3e); /* hairline borders */
+  --line2: light-dark(#a0a09a, #56565c); /* stronger border (interactive) */
+  --dash: light-dark(#b7b7b1, #46464b); /* dashed border for capture/placeholder */
+
+  /* Accent (primary action) — brighter in dark for contrast */
+  --accent: light-dark(oklch(0.55 0.12 250), oklch(0.72 0.12 250));
+  --accent-fill: light-dark(oklch(0.955 0.022 250), oklch(0.34 0.05 250));
+
+  /* State */
+  --bad: light-dark(oklch(0.55 0.17 25), oklch(0.7 0.17 25)); /* error */
+
+  /* Type + shape */
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-card: 14px;
+  --radius-btn: 8px;
+}
+
+/* Manual theme override — forces one side of every light-dark() token. */
+[data-theme="light"] {
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Ensure the hidden attribute always wins over component display rules
+   (e.g. .actions{display:flex} or a custom element's :host{display:block}). */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 40px 20px 80px;
+}
+
+.app-header {
+  text-align: center;
+  max-width: 520px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+.app-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+
+.lede {
+  color: var(--soft);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Mobile-first workspace: a vertical stack, centered. */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  max-width: 300px; /* mobile canvas width from the wireframe */
+}
+
+/* Desktop expands the canvas (per the wireframe's "Mobile 300px · Desktop 980px"). */
+@media (min-width: 768px) {
+  .workspace {
+    max-width: 560px;
+  }
+}
+
+.image-card {
+  margin: 0;
+  width: 100%;
+  background: var(--frame);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  aspect-ratio: 1408 / 768; /* match the sample photo to avoid layout shift */
+}
+
+#room-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Distinct name so the active image animates as its own element under View Transitions. */
+  view-transition-name: room-image;
+}
+
+/* Action row under the photo. */
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#capture,
+#voice,
+#history,
+#compare-view {
+  width: 100%;
+}
+
+/* Pro-render hint. */
+.pro-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--soft);
+  text-align: center;
+}
+
+/* Settings popover (Popover API). */
+.settings-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  max-width: 320px;
+  background: var(--frame);
+  color: var(--ink);
+  font-size: 13px;
+}
+.settings-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+.model-opt {
+  display: flex;
+  gap: 8px;
+  align-items: start;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.model-opt + .model-opt {
+  border-top: 1px solid var(--line);
+}
+
+.btn-primary,
+.btn-secondary {
+  font: 600 13px/1 var(--font-sans);
+  border-radius: var(--radius-btn);
+  padding: 11px 18px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.btn-primary {
+  color: var(--accent);
+  background: var(--accent-fill);
+  border: 1.5px solid var(--accent);
+}
+
+.btn-secondary {
+  color: var(--ink);
+  background: var(--frame);
+  border: 1.5px solid var(--line2);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-secondary:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Theme toggle (top-right of the header). */
+.app-header {
+  position: relative;
+}
+.theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line2);
+  background: var(--frame);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Non-blocking error toast (Popover API). Positioned bottom-center; no backdrop. */
+.toast {
+  margin: 0 auto;
+  inset: auto 0 24px 0; /* bottom-center */
+  width: max-content;
+  max-width: min(92vw, 480px);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--bad);
+  border-radius: var(--radius-btn);
+  color: var(--bad);
+  background: color-mix(in oklch, var(--bad) 12%, var(--frame));
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+.toast:popover-open {
+  /* animate in (respects reduced-motion sweep below) */
+  animation: toast-in 0.2s ease-out;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast-message {
+  flex: 1;
+}
+.toast-close {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+}
+
+/* Respect reduced-motion: drop the cross-fade and all decorative animation (meaning is carried
+   by the state change itself, not the motion). */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  .toast:popover-open {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}

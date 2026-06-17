@@ -34,6 +34,11 @@ H4. No orphan code. Every file added in a pass must be reachable from the
 H5. No silent assumption changes. If you cannot satisfy the prompt as written,
     stop and ask. Do not adapt the requirement and continue.
 
+H6. The backend runtime is Bun, not Node. Any server-side code — the optional
+    API proxy, the local dev server, tooling, tests — runs under Bun. Do not
+    introduce Node, npm scripts that assume Node, Express, Vite, webpack,
+    nodemon, ts-node, or `python -m http.server`.
+
 ================================================================================
 PRE-CODE VERIFICATION GATE (mandatory before Pass 0)
 ================================================================================
@@ -61,7 +66,14 @@ Before writing any source code, produce a verification report that confirms:
      STACK CONSTRAINT against current Baseline data. Note any features that are
      NOT yet Baseline-widely-available and the fallback strategy for each.
 
-  4. AMBIGUITIES — List every ambiguity, assumption, or decision you made that
+  4. RUNTIME — Confirm Bun is installed (`bun --version`) and pin a version
+     ≥1.2 in package.json. Quote the current `Bun.serve()` signature from
+     bun.com/docs if you intend to use it. Do not write code that depends on
+     Node-only APIs (CommonJS `require` in server modules, `__dirname` as a
+     const, `process.versions.node`, the `http` module, etc.) without first
+     confirming Bun supports them.
+
+  5. AMBIGUITIES — List every ambiguity, assumption, or decision you made that
      was not explicit in this prompt. The user reviews this list before Pass 0
      begins.
 
@@ -74,6 +86,17 @@ Vanilla JavaScript (ES2024+ modules), HTML5, and CSS only. No React, Vue,
 Svelte, Lit, Alpine, or any front-end framework. No CSS frameworks (no
 Tailwind, no Bootstrap). No build step for the UI layer — the app must run
 from a static server with `<script type="module">` imports working directly.
+
+RUNTIME (backend and dev server): Bun ≥1.2. NOT Node.js. This applies to:
+  - The local static dev server — use `Bun.serve()`. No Express, no Vite,
+    no `http-server` npm package, no `python -m http.server`.
+  - The optional server proxy that fronts Gemini API calls when self-hosting
+    (see ARCHITECTURE > API KEY HANDLING). Lives in `/server/`, runs under
+    Bun, never bundled into or referenced from the client.
+  - Tooling, scripts, and tests — use Bun's built-in test runner and
+    `Bun.file` / `Bun.write` over Node-compat shims when both work.
+TypeScript runs without a build step under Bun if you want it for server
+code; the front-end remains plain JS per H2.
 
 SDKs are allowed and encouraged where they save real plumbing:
   - @google/genai (ES module import) for the Gemini API and Live API.
@@ -187,10 +210,13 @@ The bridge between layers is FUNCTION CALLING:
   the central mechanism — Pass 2 of the vertical slice plan builds it.
 
 API KEY HANDLING:
-  See H1. Inside the AI Studio runtime the key is managed for the app. If
-  exported and self-hosted, route all SDK calls through one `apiClient.js`
-  module so swapping to a server proxy is a single config flip, not a
-  refactor.
+  See H1 and H6. Inside the AI Studio runtime the key is managed for the app.
+  If exported and self-hosted, build a thin Bun server (`Bun.serve()`) under
+  `/server/` that fronts the Gemini calls and reads the key from
+  `process.env.GEMINI_API_KEY` on the server side. Route all SDK calls through
+  one `apiClient.js` module so swapping between the AI Studio runtime and the
+  Bun proxy is a single config flip, not a refactor. The Bun proxy is never
+  bundled into or referenced from the client.
 
 ================================================================================
 EDITING CAPABILITIES (all conversational, applied to the captured photo)
@@ -220,10 +246,6 @@ UI / UX
   animations for users who opt out.
 - Use prefers-color-scheme and a manual toggle; design tokens in CSS custom
   properties so both themes are one var-swap.
-  
-- Fetch this design file, read its readme, and implement the relevant aspects of the design. https://api.anthropic.com/v1/design/h/sXw2IAQSIvjdgiT7ZgP8Yg?open_file=Space+Makeover+Visualizer+-+Wireframes.dc.html
-- Implement: Space Makeover Visualizer - Wireframes.dc.html
-- `/Users/twoedge/Dev/interiors_proto/interiors/wireframes/Space Makeover Visualizer Wireframes.html`
 
 ================================================================================
 DEVELOPMENT METHODOLOGY: VERTICAL SLICE / WALKING SKELETON
@@ -417,3 +439,4 @@ REFERENCES
 - developer.mozilla.org for View Transitions, Popover, Container Queries,
   Custom Elements, AudioWorklet, IndexedDB
 - web.dev/baseline for current Baseline support data
+- bun.com/docs for Bun.serve, Bun.file, and the runtime API surface
