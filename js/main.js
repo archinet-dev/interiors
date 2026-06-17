@@ -26,24 +26,48 @@ import { runEdit } from "./actions/editImage.js";
 import { setPhoto } from "./actions/setPhoto.js";
 import { stopVoiceSession } from "./actions/voiceSession.js";
 import { undo, redo, clearHistory, applyRestoredSession } from "./actions/history.js";
+import { downloadImage, shareImage } from "./actions/exportImage.js";
 import { loadSession } from "./db/idb.js";
 
 const SAMPLE_PROMPT = "Add a large leafy potted houseplant in the empty corner of the room, matching the existing lighting and perspective.";
 
+// Suggestion chips (wireframe §K) — quick, concrete edits the agent would offer ("two ways in").
+const SUGGESTIONS = [
+  { label: "Add plants", prompt: "Add a few large potted plants to bring greenery into the room, matching the existing lighting and perspective." },
+  { label: "Warmer walls", prompt: "Repaint the walls in a warm, inviting tone that suits the room, keeping the geometry and lighting." },
+  { label: "Cozy + modern", prompt: "Restyle the room to feel cozy and modern with updated furniture and soft decor, preserving the layout and perspective." },
+  { label: "Declutter", prompt: "Declutter the room — remove clutter and excess objects for a clean, tidy, well-staged look." },
+];
+
 // --- DOM references ---
 const capture = document.getElementById("capture");
+const topbar = document.getElementById("topbar");
 const imageView = document.getElementById("image-view");
 const voice = document.getElementById("voice");
+const suggestions = document.getElementById("suggestions");
 const historyStrip = document.getElementById("history");
 const actions = document.getElementById("actions");
 const img = document.getElementById("room-image");
 const compareView = document.getElementById("compare-view");
 const compareButton = document.getElementById("compare-button");
+const downloadButton = document.getElementById("download-button");
+const shareButton = document.getElementById("share-button");
 const proHint = document.getElementById("pro-hint");
 const editButton = document.getElementById("edit-button");
 const undoButton = document.getElementById("undo-button");
 const redoButton = document.getElementById("redo-button");
 const retakeButton = document.getElementById("retake-button");
+
+// Build the suggestion chips once; each runs a concrete edit (disabled while one is in flight).
+const chipButtons = SUGGESTIONS.map(({ label, prompt }) => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "chip";
+  btn.textContent = label;
+  btn.addEventListener("click", () => runEdit(prompt));
+  suggestions.append(btn);
+  return btn;
+});
 
 // --- Blob-URL lifecycle tracking (every createObjectURL needs a matching revoke) ---
 let renderedBlob = null; // the Blob currently shown (compare by identity, NOT URL string)
@@ -58,9 +82,11 @@ function render(state) {
   // Toggle capture surface vs. room view. While comparing, show before/after instead of the image.
   const comparing = hasPhoto && state.comparing;
   capture.hidden = hasPhoto;
+  topbar.hidden = !hasPhoto;
   imageView.hidden = !hasPhoto || comparing;
   compareView.hidden = !comparing;
   voice.hidden = !hasPhoto;
+  suggestions.hidden = !hasPhoto;
   historyStrip.hidden = !hasPhoto;
   actions.hidden = !hasPhoto;
 
@@ -73,6 +99,11 @@ function render(state) {
   editButton.disabled = state.editingInFlight;
   editButton.textContent = state.editingInFlight ? "Editing…" : "Try a sample edit";
   retakeButton.disabled = state.editingInFlight;
+  downloadButton.disabled = state.editingInFlight;
+  shareButton.disabled = state.editingInFlight;
+
+  // Suggestion chips are disabled while an edit is running.
+  for (const chip of chipButtons) chip.disabled = state.editingInFlight;
 
   // Undo/Redo enablement mirrors the history pointer.
   undoButton.disabled = state.editingInFlight || state.historyIndex <= 0;
@@ -122,6 +153,10 @@ editButton.addEventListener("click", () => runEdit(SAMPLE_PROMPT));
 // Undo / Redo buttons.
 undoButton.addEventListener("click", () => undo());
 redoButton.addEventListener("click", () => redo());
+
+// Download / Share the current design (wireframe §L).
+downloadButton.addEventListener("click", () => downloadImage());
+shareButton.addEventListener("click", () => shareImage());
 
 // Compare toggle — animate the swap via a View Transition (reduced-motion falls back to instant).
 compareButton.addEventListener("click", () => {

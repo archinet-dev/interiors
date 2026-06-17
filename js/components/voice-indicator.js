@@ -40,14 +40,19 @@ sheet.replaceSync(`
   }
   .transcript {
     display: flex; flex-direction: column; gap: 6px;
-    max-height: 160px; overflow-y: auto; font-size: 13px;
+    max-height: 180px; overflow-y: auto; font-size: 13px;
   }
   .transcript:empty { display: none; }
-  .line { line-height: 1.4; }
-  .line .who { font: 600 10px/1 var(--font-mono, monospace); text-transform: uppercase; letter-spacing: .08em; margin-right: 6px; }
-  .line.user .who { color: var(--accent, #36c); }
-  .line.agent .who { color: var(--ink, #2c2c29); }
-  .line.tool { color: var(--soft, #76766f); font-style: italic; }
+  /* Chat bubbles (wireframe §C): user right + accent, agent left + tint, tool centered + muted. */
+  .line { display: flex; flex-direction: column; max-width: 85%; line-height: 1.4; }
+  .line .who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } /* sr-only */
+  .line .text { padding: 7px 10px; border-radius: 12px; }
+  .line.user { align-self: flex-end; }
+  .line.user .text { background: var(--accent, #36c); color: #fff; border-bottom-right-radius: 4px; }
+  .line.agent { align-self: flex-start; }
+  .line.agent .text { background: var(--accent-fill, #eef); color: var(--ink, #2c2c29); border-bottom-left-radius: 4px; }
+  .line.tool { align-self: center; max-width: 100%; }
+  .line.tool .text { background: transparent; color: var(--soft, #76766f); font-style: italic; font-size: 11px; padding: 2px 0; }
   @media (prefers-reduced-motion: reduce) { .mic { animation: none !important; } }
 `);
 

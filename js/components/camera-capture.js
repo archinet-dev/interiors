@@ -26,7 +26,9 @@ sheet.replaceSync(`
     text-align: center;
   }
   .surface.dragover { border-color: var(--accent, #36c); background: var(--accent-fill, #eef); }
-  .hint { color: var(--soft, #76766f); font-size: 13px; margin: 0; }
+  .welcome { font: 700 18px/1.25 var(--font-sans, system-ui); color: var(--ink, #2c2c29); margin: 0; }
+  .hint { color: var(--soft, #76766f); font-size: 13px; margin: 0; max-width: 30ch; }
+  .note { color: var(--soft, #76766f); font-size: 11px; margin: 0; opacity: 0.85; }
   .controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
   button {
     font: 600 13px/1 var(--font-sans, system-ui);
@@ -59,7 +61,8 @@ class CameraCapture extends HTMLElement {
     root.adoptedStyleSheets = [sheet];
     root.innerHTML = `
       <div class="surface" part="surface">
-        <p class="hint">Take a photo of your room, upload one, or drag an image here.</p>
+        <p class="welcome">Redesign any room, just by talking.</p>
+        <p class="hint">Photograph your space or drag an image here, then ask out loud — “add a rug,” “warmer walls” — and watch it change.</p>
 
         <div class="preview-wrap" hidden>
           <video playsinline muted></video>
@@ -70,6 +73,8 @@ class CameraCapture extends HTMLElement {
           <button type="button" data-act="upload">Upload photo</button>
           <button type="button" data-act="sample">Use sample</button>
         </div>
+
+        <p class="note">Camera &amp; mic are used only on this device.</p>
 
         <div class="controls" data-view="live" hidden>
           <button type="button" class="primary" data-act="shoot">Capture</button>
