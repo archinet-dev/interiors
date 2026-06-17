@@ -27,9 +27,15 @@ export function attachZoomPan(container, img) {
   const apply = () => {
     img.style.transform = scale === 1 ? "" : `translate(${tx}px, ${ty}px) scale(${scale})`;
     container.style.cursor = scale > 1 ? "grab" : "";
-    // Only trap touch gestures while zoomed; at 1× let the page scroll normally over the image.
-    container.style.touchAction = scale > 1 ? "none" : "";
+    // When zoomed, trap all touch gestures so one-finger drag pans (not scrolls). At 1×, use pan-y:
+    // the page still scrolls vertically with one finger, but a two-finger pinch is delivered to our
+    // handlers instead of being hijacked by the browser — so pinch works even starting from 1×.
+    container.style.touchAction = scale > 1 ? "none" : "pan-y";
   };
+
+  // Seed the touch-action immediately (never leave it at the default `auto`, or a pinch that starts
+  // from 1× is decided by the browser before our JS can react).
+  container.style.touchAction = "pan-y";
 
   const reset = () => {
     scale = 1;
@@ -103,6 +109,17 @@ export function attachZoomPan(container, img) {
   const end = (e) => {
     pointers.delete(e.pointerId);
     try { container.releasePointerCapture(e.pointerId); } catch {}
+    // If a pinch ends with one finger still down, re-seed the pan anchors from the remaining
+    // pointer (and current translate) so the continuing one-finger pan doesn't jump.
+    if (pointers.size === 1 && scale > 1) {
+      const [p] = pointers.values();
+      startX = p.x;
+      startY = p.y;
+      startTx = tx;
+      startTy = ty;
+      container.style.cursor = "grabbing";
+      return;
+    }
     if (scale <= MIN + 0.02) reset();
     else container.style.cursor = "grab";
   };
