@@ -74,7 +74,7 @@ class CameraCapture extends HTMLElement {
           <button type="button" data-act="sample">Use sample</button>
         </div>
 
-        <p class="note">Camera &amp; mic are used only on this device.</p>
+        <p class="note">Your photo and voice are sent securely to the AI only to redesign your room.</p>
 
         <div class="controls" data-view="live" hidden>
           <button type="button" class="primary" data-act="shoot">Capture</button>

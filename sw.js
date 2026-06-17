@@ -21,6 +21,7 @@ const SHELL = [
   "/js/actions/setPhoto.js",
   "/js/actions/voiceSession.js",
   "/js/actions/history.js",
+  "/js/actions/exportImage.js",
   "/js/audio/audioIO.js",
   "/js/audio/recorder-worklet.js",
   "/js/components/camera-capture.js",
