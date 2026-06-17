@@ -8,6 +8,19 @@
 //  5. Swap the <img> inside document.startViewTransition() (reduced-motion fallback).
 //  6. Keep Blob-URL discipline: track the rendered Blob and revoke the prior object URL.
 
+// Side-effect imports: these modules register custom elements and wire DOM listeners
+// at import time. Pulling them in here makes main.js the single module entrypoint
+// (consolidated from index.html's separate <script> tags). main.js is a deferred
+// module, so it runs after the document is parsed — DOM queries inside them are safe.
+import "./components/camera-capture.js";
+import "./components/voice-indicator.js";
+import "./components/edit-history.js";
+import "./components/before-after.js";
+import "./settings.js";
+import "./theme.js";
+import "./toast.js";
+import "./pwa.js";
+
 import { getState, setState, subscribe } from "./state.js";
 import { runEdit } from "./actions/editImage.js";
 import { setPhoto } from "./actions/setPhoto.js";
@@ -126,6 +139,12 @@ retakeButton.addEventListener("click", () => {
 
 // Keyboard: Cmd/Ctrl+Z = undo, Shift+Cmd/Ctrl+Z = redo (only when a photo is loaded).
 addEventListener("keydown", (e) => {
+  // Don't hijack native undo/redo when the user is typing/editing in a form control.
+  // composedPath()[0] resolves the real target even across shadow DOM; fall back to e.target.
+  const target = e.composedPath?.()[0] ?? e.target;
+  const tag = target?.tagName;
+  if (target?.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
   const meta = e.metaKey || e.ctrlKey;
   if (!meta || e.key.toLowerCase() !== "z") return;
   if (!getState().sourceImage || getState().editingInFlight) return;

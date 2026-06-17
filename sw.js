@@ -73,7 +73,9 @@ self.addEventListener("fetch", (event) => {
         .then((res) => {
           if (res.ok && (res.type === "basic" || res.type === "cors")) {
             const copy = res.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
+            // Keep the SW alive until the cache write finishes — otherwise the worker
+            // can terminate mid-write (fire-and-forget) and the runtime cache entry is lost.
+            event.waitUntil(caches.open(CACHE).then((cache) => cache.put(request, copy)));
           }
           return res;
         })

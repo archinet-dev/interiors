@@ -6,7 +6,8 @@
 // state, and routes tool calls to the real edit action. After each edit the new image is sent back
 // so the agent can describe what changed (per the spec).
 
-import { GoogleGenAI, Modality, Type } from "@google/genai";
+import { Modality, Type } from "@google/genai";
+import { ai } from "../apiClient.js"; // shared SDK instance — apiClient is the one chokepoint (H1)
 import { getState, setState } from "../state.js";
 import { runEdit } from "./editImage.js";
 import { startMicCapture, PcmPlayer } from "../audio/audioIO.js";
@@ -19,13 +20,6 @@ const SYSTEM_INSTRUCTION = `You are a friendly, concise interior-design assistan
 When the user asks for a change to the room, call the editImage tool with a CONCRETE, specific prompt that names the subject and the change — e.g. "replace the grey sofa with a tan leather sofa", "paint the walls sage green", "add a large potted fiddle-leaf fig in the empty corner". Preserve the room's geometry, perspective, and lighting. Do not call the tool for general chit-chat or questions.
 
 After an edit completes you will receive the updated photo; describe what changed in ONE short spoken sentence. Keep all spoken replies brief and natural.`;
-
-// One SDK instance, pointed at the proxy. The placeholder key is not a secret — the Bun proxy
-// injects the real key into the upstream WebSocket.
-const ai = new GoogleGenAI({
-  apiKey: "managed-by-proxy",
-  httpOptions: { baseUrl: `${location.origin}/api/genai` },
-});
 
 const editImageTool = {
   name: "editImage",
@@ -45,22 +39,33 @@ const editImageTool = {
 let session = null;
 let mic = null;
 let player = null;
-let handlingTool = false; // serialize tool-call handling across concurrent onmessage calls
+let handlingTool = false; // true while the queue drain loop is running (serializes edits)
+let pendingToolCalls = []; // FIFO queue of functionCalls awaiting an editImage + tool response
+let startGeneration = 0; // bumped each startVoiceSession; lets a slow connect detect it was superseded
+let stopping = false; // re-entrancy guard so onerror/onclose → stopVoiceSession can't recurse
 
 // Open the Live session and start streaming the mic. Idempotent.
 export async function startVoiceSession() {
   if (session) return;
-  const { sourceImage } = getState();
-  if (!sourceImage) {
+  // Ground the session in the CURRENT image: edits/undo/redo change activeImage, so the photo the
+  // agent should see is activeImage (falling back to sourceImage before any edit has happened).
+  const { activeImage, sourceImage } = getState();
+  const contextImage = activeImage || sourceImage;
+  if (!contextImage) {
     setState({ error: "Add a photo first, then start the voice assistant." });
     return;
   }
+
+  // Generation token: capture this start's id so a late-resolving connect() can tell whether a
+  // stopVoiceSession() (or another start) ran while we were awaiting, and bail instead of
+  // resurrecting a session the user already closed.
+  const myGeneration = ++startGeneration;
 
   try {
     setState({ voiceStatus: "listening", voiceActive: true, error: null, voiceTranscript: [] });
     player = new PcmPlayer();
 
-    session = await ai.live.connect({
+    const live = await ai.live.connect({
       model: LIVE_MODEL,
       config: {
         responseModalities: [Modality.AUDIO],
@@ -71,17 +76,31 @@ export async function startVoiceSession() {
       },
       callbacks: {
         onopen: () => console.log("[voice] session open"),
+        // Socket-level error or close → full teardown (mic, player, session) so we never leave a
+        // half-dead session running. Surface a friendly message on error.
         onerror: (e) => {
           console.error("[voice] ws error:", e);
-          setState({ error: "Voice connection error.", voiceStatus: "idle" });
+          setState({ error: "Voice connection error." });
+          stopVoiceSession();
         },
-        onclose: (e) => console.log("[voice] session closed:", e?.reason || ""),
+        onclose: (e) => {
+          console.log("[voice] session closed:", e?.reason || "");
+          stopVoiceSession();
+        },
         onmessage: onLiveMessage,
       },
     });
 
+    // If a stop (or restart) happened while connect() was in flight, this session is stale:
+    // close it and abandon setup rather than overwriting the current state.
+    if (myGeneration !== startGeneration || stopping) {
+      try { live.close(); } catch {}
+      return;
+    }
+    session = live;
+
     // Send the current photo as visual context on session start (spec).
-    await sendImageContext(sourceImage, "Here is the room photo I'm working with.");
+    await sendImageContext(contextImage, "Here is the room photo I'm working with.");
 
     // Start mic capture → stream PCM frames to the session.
     mic = await startMicCapture((pcmBuffer) => {
@@ -90,10 +109,14 @@ export async function startVoiceSession() {
         audio: { data: arrayBufferToBase64(pcmBuffer), mimeType: "audio/pcm;rate=16000" },
       });
     });
-    // If the session was stopped while the mic permission dialog was up, don't leave it running.
-    if (!session) {
+    // If the session was stopped (or superseded) while the mic permission dialog was up, don't
+    // leave the mic or session running — tear down whatever this start brought up.
+    if (myGeneration !== startGeneration || stopping || !session) {
       mic.stop();
       mic = null;
+      try { live.close(); } catch {}
+      if (session === live) session = null;
+      return;
     }
   } catch (err) {
     // Expected user conditions (denied/no mic) are warnings; anything else is a real error.
@@ -104,16 +127,26 @@ export async function startVoiceSession() {
   }
 }
 
-// Tear down everything cleanly.
+// Tear down everything cleanly. Re-entrancy guarded so the Live onerror/onclose callbacks (which
+// call back into here) can't recurse while we're already tearing down.
 export async function stopVoiceSession() {
-  try { mic?.stop(); } catch {}
-  try { player?.stop(); } catch {}
-  try { session?.close(); } catch {}
-  mic = null;
-  player = null;
-  session = null;
-  handlingTool = false;
-  setState({ voiceStatus: "idle", voiceActive: false });
+  if (stopping) return;
+  stopping = true;
+  // Invalidate any in-flight startVoiceSession so a late connect() resolves into a no-op.
+  startGeneration++;
+  try {
+    try { mic?.stop(); } catch {}
+    try { player?.stop(); } catch {}
+    try { session?.close(); } catch {}
+    mic = null;
+    player = null;
+    session = null;
+    handlingTool = false;
+    pendingToolCalls = [];
+    setState({ voiceStatus: "idle", voiceActive: false });
+  } finally {
+    stopping = false;
+  }
 }
 
 // Send a text turn (used as a fallback and for automated testing of the tool-call bridge).
@@ -126,32 +159,13 @@ export function sendUserText(text) {
 // --- Live message handling ---
 
 async function onLiveMessage(msg) {
-  // 1) Tool call → run the real edit, report the result, then send the new image as context.
-  //    Serialize across concurrent onmessage invocations so two edits can't interleave.
+  // 1) Tool call → enqueue the functionCalls and drain serially. Queuing (rather than dropping
+  //    calls that arrive while one is running) guarantees EVERY functionCall gets a tool response,
+  //    so no call id is ever left dangling.
   const calls = msg.toolCall?.functionCalls;
-  if (calls?.length && !handlingTool) {
-    handlingTool = true;
-    if (getState().voiceActive) setState({ voiceStatus: "thinking" });
-    try {
-      for (const fc of calls) {
-        if (fc.name !== "editImage") continue;
-        const prompt = fc.args?.prompt || "";
-        appendTranscript("tool", `editImage("${prompt}")`);
-        const ok = await runEdit(prompt);
-        session?.sendToolResponse({
-          functionResponses: [
-            { id: fc.id, name: fc.name, response: ok ? { result: "success", applied: prompt } : { result: "error" } },
-          ],
-        });
-        if (ok) {
-          const { activeImage } = getState();
-          if (activeImage) await sendImageContext(activeImage, "Here is the updated room after that edit.");
-        }
-      }
-    } finally {
-      handlingTool = false;
-      if (getState().voiceActive) setState({ voiceStatus: "listening" });
-    }
+  if (calls?.length) {
+    pendingToolCalls.push(...calls);
+    drainToolCalls(); // fire-and-forget; self-guards against concurrent drains
   }
 
   // 2) Transcriptions (input + output captions).
@@ -173,6 +187,43 @@ async function onLiveMessage(msg) {
   // 4) Turn boundaries.
   if (msg.serverContent?.interrupted) player?.flush(); // barge-in
   if (msg.serverContent?.turnComplete && getState().voiceActive) setState({ voiceStatus: "listening" });
+}
+
+// Drain the tool-call queue one editImage at a time. The handlingTool flag makes this a singleton
+// loop: concurrent onmessage callbacks just append to the queue and let the running drain pick them
+// up. Every call — including ones queued mid-edit — gets a sendToolResponse so no id is dropped.
+async function drainToolCalls() {
+  if (handlingTool) return; // a drain is already running; it will consume what we just pushed
+  handlingTool = true;
+  if (getState().voiceActive) setState({ voiceStatus: "thinking" });
+  try {
+    while (pendingToolCalls.length) {
+      const fc = pendingToolCalls.shift();
+      if (fc.name !== "editImage") {
+        // Unknown tool: still answer the call so its id isn't left without a response.
+        session?.sendToolResponse({
+          functionResponses: [{ id: fc.id, name: fc.name, response: { result: "error", error: "unknown tool" } }],
+        });
+        continue;
+      }
+      const prompt = fc.args?.prompt || "";
+      appendTranscript("tool", `editImage("${prompt}")`);
+      const ok = await runEdit(prompt);
+      session?.sendToolResponse({
+        functionResponses: [
+          { id: fc.id, name: fc.name, response: ok ? { result: "success", applied: prompt } : { result: "error" } },
+        ],
+      });
+      // After a successful edit, send the updated image back so the agent can describe it (spec).
+      if (ok) {
+        const { activeImage } = getState();
+        if (activeImage) await sendImageContext(activeImage, "Here is the updated room after that edit.");
+      }
+    }
+  } finally {
+    handlingTool = false;
+    if (getState().voiceActive) setState({ voiceStatus: "listening" });
+  }
 }
 
 // --- helpers ---

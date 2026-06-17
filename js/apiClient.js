@@ -22,7 +22,9 @@ export const MODELS = {
 const PROXY_BASE = `${location.origin}/api/genai`;
 
 // apiKey is a non-secret placeholder; the proxy overrides auth with the real key server-side.
-const ai = new GoogleGenAI({
+// Exported so other modules (e.g. voiceSession.js) reuse this single instance rather than
+// each constructing their own — apiClient.js stays the one @google/genai chokepoint (H1).
+export const ai = new GoogleGenAI({
   apiKey: "managed-by-proxy",
   httpOptions: { baseUrl: PROXY_BASE },
 });
@@ -39,20 +41,26 @@ export async function editImage(blob, prompt, model = MODELS.flash) {
     ],
   });
 
-  // Defensive parse (Risk R2): scan ALL parts for the first inline image; tolerate snake_case.
-  const parts = response?.candidates?.[0]?.content?.parts ?? [];
-  for (const part of parts) {
-    const inline = part.inlineData || part.inline_data;
-    if (inline?.data) {
-      const bytes = base64ToBytes(inline.data);
-      return new Blob([bytes], { type: inline.mimeType || inline.mime_type || "image/jpeg" });
+  // Defensive parse (Risk R2): scan ALL candidates, and all parts within each, for the first
+  // inline image; tolerate snake_case. Some responses split content across multiple candidates,
+  // so checking only candidates[0] can miss an image that did come back.
+  const candidates = response?.candidates ?? [];
+  let firstText; // remember any text so we can surface the model's message if no image is found
+  for (const candidate of candidates) {
+    const parts = candidate?.content?.parts ?? [];
+    for (const part of parts) {
+      const inline = part.inlineData || part.inline_data;
+      if (inline?.data) {
+        const bytes = base64ToBytes(inline.data);
+        return new Blob([bytes], { type: inline.mimeType || inline.mime_type || "image/jpeg" });
+      }
+      if (firstText === undefined && part.text) firstText = part.text;
     }
   }
 
-  // No image came back — surface the model's text (or a clear error) for the user.
-  const text = parts.find((p) => p.text)?.text;
+  // No image came back across any candidate — surface the model's text (or a clear error).
   throw new Error(
-    text ? `The model returned no image. It said: "${text}"` : "The model returned no image."
+    firstText ? `The model returned no image. It said: "${firstText}"` : "The model returned no image."
   );
 }
 

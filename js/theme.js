@@ -25,13 +25,20 @@ function updateButton(choice) {
   button.title = `Theme: ${mode}`;
 }
 
+// Read the stored choice, sanitizing it: only 'light'/'dark' are valid explicit
+// choices — anything else (corrupt/legacy value) collapses to null so we follow
+// the system and never feed an unknown key into ICON[mode] (which would be undefined).
+function readStored() {
+  const value = localStorage.getItem(KEY);
+  return value === "light" || value === "dark" ? value : null;
+}
+
 // Initialize from storage.
-const stored = localStorage.getItem(KEY);
-apply(stored);
+apply(readStored());
 
 // Cycle system → light → dark → system on click.
 button?.addEventListener("click", () => {
-  const current = localStorage.getItem(KEY) || "system";
+  const current = readStored() || "system"; // sanitized read; corrupt value -> system
   const next = current === "system" ? "light" : current === "light" ? "dark" : "system";
   if (next === "system") localStorage.removeItem(KEY);
   else localStorage.setItem(KEY, next);

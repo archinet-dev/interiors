@@ -118,7 +118,15 @@ class BeforeAfter extends HTMLElement {
 
   // Swap an <img>'s blob URL only when the underlying Blob changed (identity compare).
   #updateImage(slot, blob, el) {
-    if (!blob || blob === this.#blobs[slot]) return;
+    // No blob for this slot: revoke the previous URL (avoid leaking it) and clear the <img>.
+    // We must NOT early-return before cleanup, or the old object URL leaks.
+    if (!blob) {
+      this.#revoke(slot);
+      el.removeAttribute("src");
+      return;
+    }
+    // Identity-skip: same Blob already rendered, nothing to do.
+    if (blob === this.#blobs[slot]) return;
     this.#revoke(slot);
     const url = URL.createObjectURL(blob);
     this.#urls[slot] = url;

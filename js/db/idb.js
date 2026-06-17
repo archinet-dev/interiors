@@ -15,7 +15,16 @@ function openDB() {
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, VERSION);
     req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      // Drop the cached handle if the connection dies or another tab triggers a
+      // versionchange — otherwise withStore() would keep using a dead handle and
+      // persistence would silently break until a full reload. Nulling dbPromise
+      // makes the next openDB() call reopen a fresh connection.
+      db.onclose = () => { dbPromise = null; };
+      db.onversionchange = () => { db.close(); dbPromise = null; };
+      resolve(db);
+    };
     req.onerror = () => {
       dbPromise = null; // don't cache a rejected promise — allow a later retry
       reject(req.error);

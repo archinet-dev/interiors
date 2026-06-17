@@ -46,6 +46,12 @@ sheet.replaceSync(`
 
 class CameraCapture extends HTMLElement {
   #stream = null; // active MediaStream, so we can stop tracks on teardown (R2)
+  // Bound handler refs (assigned in constructor) so add/removeEventListener use identical fns.
+  #onClick = null;
+  #onFileChange = null;
+  #onDragOver = null;
+  #onDragLeave = null;
+  #onDrop = null;
 
   constructor() {
     super();
@@ -83,37 +89,48 @@ class CameraCapture extends HTMLElement {
     this.$live = root.querySelector('[data-view="live"]');
     this.$msg = root.querySelector(".msg");
     this.$file = root.querySelector('input[type="file"]');
-  }
 
-  connectedCallback() {
-    // Delegate clicks from both control rows.
-    this.shadowRoot.addEventListener("click", (e) => {
+    // Bind handlers ONCE here so the SAME function references are used for both add and
+    // removeEventListener. If we created new closures in connectedCallback, every connect/
+    // disconnect cycle would stack duplicate listeners (actions firing multiple times).
+    this.#onClick = (e) => {
       const act = e.target?.dataset?.act;
       if (act) this.#onAction(act);
-    });
-
-    // File upload.
-    this.$file.addEventListener("change", () => {
+    };
+    this.#onFileChange = () => {
       const file = this.$file.files?.[0];
       if (file) this.#useFile(file);
       this.$file.value = ""; // allow re-selecting the same file
-    });
-
-    // Drag-and-drop.
-    this.$surface.addEventListener("dragover", (e) => {
+    };
+    this.#onDragOver = (e) => {
       e.preventDefault();
       this.$surface.classList.add("dragover");
-    });
-    this.$surface.addEventListener("dragleave", () => this.$surface.classList.remove("dragover"));
-    this.$surface.addEventListener("drop", (e) => {
+    };
+    this.#onDragLeave = () => this.$surface.classList.remove("dragover");
+    this.#onDrop = (e) => {
       e.preventDefault();
       this.$surface.classList.remove("dragover");
       const file = e.dataTransfer?.files?.[0];
       if (file) this.#useFile(file);
-    });
+    };
+  }
+
+  connectedCallback() {
+    // Register each listener exactly once per connect (mirrored in disconnectedCallback).
+    this.shadowRoot.addEventListener("click", this.#onClick); // delegate clicks from both control rows
+    this.$file.addEventListener("change", this.#onFileChange); // file upload
+    this.$surface.addEventListener("dragover", this.#onDragOver); // drag-and-drop
+    this.$surface.addEventListener("dragleave", this.#onDragLeave);
+    this.$surface.addEventListener("drop", this.#onDrop);
   }
 
   disconnectedCallback() {
+    // Remove every listener added in connectedCallback so reconnecting can't stack duplicates.
+    this.shadowRoot.removeEventListener("click", this.#onClick);
+    this.$file.removeEventListener("change", this.#onFileChange);
+    this.$surface.removeEventListener("dragover", this.#onDragOver);
+    this.$surface.removeEventListener("dragleave", this.#onDragLeave);
+    this.$surface.removeEventListener("drop", this.#onDrop);
     this.#stopStream();
   }
 

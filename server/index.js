@@ -11,7 +11,7 @@
 // Bun auto-loads .env (git-ignored) — no dependency needed. No build step (H2).
 // Run with:  bun run start    (or directly:  bun server/index.js ;  bun --watch for reload)
 
-import { join, normalize } from "node:path"; // supported under Bun's Node-compat layer
+import { join, normalize, sep } from "node:path"; // supported under Bun's Node-compat layer
 
 // Project root is the parent of /server/. Static client files are served from here.
 const ROOT = normalize(join(import.meta.dir, ".."));
@@ -33,7 +33,14 @@ const server = Bun.serve({
   port: PORT,
   async fetch(req, server) {
     const url = new URL(req.url);
-    let path = decodeURIComponent(url.pathname);
+    // decodeURIComponent throws on malformed percent-encoding (e.g. a bare "%"). Guard it so a
+    // bad URL returns 400 instead of bubbling out of fetch() and crashing the request handler.
+    let path;
+    try {
+      path = decodeURIComponent(url.pathname);
+    } catch {
+      return new Response("Bad request", { status: 400 });
+    }
 
     // 0) LIVE WEBSOCKET PROXY — the SDK opens ws://<origin>/api/genai/ws/...BidiGenerateContent
     //    ?key=<placeholder>. Upgrade it, then pipe to the upstream wss with the REAL key injected.
@@ -76,9 +83,19 @@ const server = Bun.serve({
     // 2) STATIC — Bun.file() sets Content-Type from the extension (text/javascript for .js,
     //    so ES-module imports load correctly). Bun.file is lazy, so guard with exists().
     if (path === "/") path = "/index.html";
-    if (BLOCKED.test(path)) return new Response("Not found", { status: 404 });
+    // Resolve to an absolute path and NORMALIZE FIRST. Normalizing before any security check
+    // collapses URL-encoded traversal (e.g. /foo/%2e%2e/.env -> ROOT/.env), so a decoded "../"
+    // can't slip past BLOCKED and then escape upward after the fact.
     const filePath = normalize(join(ROOT, path));
-    if (!filePath.startsWith(ROOT)) return new Response("Forbidden", { status: 403 }); // traversal
+    // Separator-aware containment: require an exact ROOT match or ROOT + path separator, so a
+    // sibling dir sharing ROOT's name prefix (e.g. ROOT=/app vs /app2) cannot be served.
+    if (filePath !== ROOT && !filePath.startsWith(ROOT + sep)) {
+      return new Response("Forbidden", { status: 403 }); // traversal / escaped root
+    }
+    // Run the blocklist on the NORMALIZED path relative to ROOT, so encoded traversal that
+    // resolves into /server, /.env*, or /.git is caught here (not on the pre-normalized path).
+    const rel = filePath.slice(ROOT.length) || "/";
+    if (BLOCKED.test(rel)) return new Response("Not found", { status: 404 });
     const file = Bun.file(filePath);
     if (await file.exists()) return new Response(file);
     return new Response(`Not found: ${path}`, {

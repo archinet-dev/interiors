@@ -56,6 +56,7 @@ class VoiceIndicator extends HTMLElement {
   #lastTranscriptLen = -1;
   #lastStatus = null;
   #lastVoiceActive = null;
+  #onMicClick = null; // bound mic handler ref, so we can removeEventListener on disconnect
 
   constructor() {
     super();
@@ -79,16 +80,20 @@ class VoiceIndicator extends HTMLElement {
   }
 
   connectedCallback() {
-    this.$mic.addEventListener("click", () => {
+    // Define the bound handler once (idempotent across reconnects) so disconnectedCallback
+    // can remove the exact same reference — otherwise listeners stack on reattach.
+    this.#onMicClick ??= () => {
       const { voiceActive } = getState();
       if (voiceActive) stopVoiceSession();
       else startVoiceSession();
-    });
+    };
+    this.$mic.addEventListener("click", this.#onMicClick);
     this.#unsub = subscribe((s) => this.render(s));
     this.render(getState());
   }
 
   disconnectedCallback() {
+    this.$mic.removeEventListener("click", this.#onMicClick); // mirror connectedCallback
     this.#unsub?.();
   }
 
