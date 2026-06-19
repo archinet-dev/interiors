@@ -318,10 +318,15 @@ body {
 .app-header {
   position: relative;
 }
+/* Full-width control row at the top of the header: Guide (left), theme toggle (right). */
+.header-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
 .theme-toggle {
-  position: absolute;
-  top: 0;
-  right: 0;
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -329,6 +334,26 @@ body {
   background: var(--frame);
   font-size: 16px;
   cursor: pointer;
+  flex: 0 0 auto;
+}
+
+/* Link to the user guide (mirrors the theme toggle). */
+.help-link {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 19px;
+  border: 1.5px solid var(--line2);
+  background: var(--frame);
+  color: var(--ink);
+  font: 600 13px/1 var(--font-sans);
+  text-decoration: none;
+  flex: 0 0 auto;
+}
+.help-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Non-blocking error toast (Popover API). Positioned bottom-center; no backdrop. */
