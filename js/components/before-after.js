@@ -15,7 +15,9 @@ sheet.replaceSync(`
     background: #000; aspect-ratio: 1408 / 768;
   }
   img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; -webkit-user-drag: none; }
-  .after { clip-path: inset(0 calc(100% - var(--split, 50%)) 0 0); }
+  /* The edited image is the base; the ORIGINAL sits on top, clipped to the left of the divider —
+     so left of the handle reads as "Before" (original) and right reads as "After" (edited). */
+  .before { clip-path: inset(0 calc(100% - var(--split, 50%)) 0 0); }
   .divider {
     position: absolute; top: 0; bottom: 0; left: var(--split, 50%);
     width: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.3); transform: translateX(-1px);
@@ -49,8 +51,8 @@ class BeforeAfter extends HTMLElement {
     const wrap = document.createElement("div");
     wrap.className = "wrap";
     wrap.innerHTML = `
-      <img class="before" alt="Original room">
       <img class="after" alt="Edited room">
+      <img class="before" alt="Original room">
       <span class="label before">Before</span>
       <span class="label after">After</span>
       <div class="divider" tabindex="0" role="slider" aria-label="Reveal edited image"

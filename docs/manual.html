@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Space Makeover Visualizer — User Manual</title>
+    <meta name="description" content="An interactive guide to photographing a room and redesigning it by talking to a live AI assistant." />
+    <style>
+      /* ---- Design tokens ---- */
+      /* Surfaces/text/line/accent/bad match the app's styles.css exactly; --frame-2, --ok and
+         --warn are doc-only extras (the app doesn't define them) used by this manual's UI. */
+      :root {
+        color-scheme: light dark;
+        --bg: light-dark(#e8e8e4, #19191b);
+        --frame: light-dark(#ffffff, #242528);
+        --frame-2: light-dark(#f3f3ef, #1f2022); /* doc-only */
+        --ink: light-dark(#2c2c29, #ececea);
+        --soft: light-dark(#76766f, #9b9b94);
+        --line: light-dark(#d4d4cf, #3a3a3e);
+        --accent: light-dark(oklch(0.55 0.12 250), oklch(0.72 0.12 250));
+        --accent-fill: light-dark(oklch(0.955 0.022 250), oklch(0.34 0.05 250));
+        --ok: light-dark(oklch(0.55 0.11 150), oklch(0.72 0.12 150)); /* doc-only */
+        --warn: light-dark(oklch(0.62 0.13 70), oklch(0.78 0.13 80)); /* doc-only */
+        --bad: light-dark(oklch(0.55 0.17 25), oklch(0.7 0.17 25));
+        --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+        --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+        --radius: 14px;
+        --maxw: 820px;
+      }
+      [data-theme="light"] { color-scheme: light; }
+      [data-theme="dark"] { color-scheme: dark; }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--font-sans);
+        font-size: 16px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: var(--accent); }
+
+      /* ---- Hero ---- */
+      .hero {
+        position: relative;
+        padding: 48px 24px 32px;
+        text-align: center;
+        border-bottom: 1px solid var(--line);
+        background: var(--frame);
+      }
+      .hero .eyebrow {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin: 0 0 10px;
+      }
+      .hero h1 { font-size: clamp(26px, 4vw, 40px); margin: 0 0 10px; letter-spacing: -0.02em; }
+      .hero p { color: var(--soft); max-width: 60ch; margin: 0 auto; }
+      .theme-toggle {
+        position: absolute; top: 18px; right: 18px;
+        width: 40px; height: 40px; border-radius: 50%;
+        border: 1.5px solid var(--line); background: var(--frame);
+        font-size: 17px; cursor: pointer; color: var(--ink);
+      }
+
+      /* ---- Layout: sticky sidebar + content ---- */
+      .layout {
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        gap: 40px;
+        max-width: 1140px;
+        margin: 0 auto;
+        padding: 32px 24px 96px;
+        align-items: start;
+      }
+      nav.toc {
+        position: sticky; top: 16px;
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--frame);
+        font-size: 14px;
+      }
+      nav.toc strong {
+        display: block; font-family: var(--font-mono); font-size: 10px;
+        text-transform: uppercase; letter-spacing: 0.12em; color: var(--soft);
+        margin: 14px 0 6px;
+      }
+      nav.toc strong:first-child { margin-top: 0; }
+      nav.toc a {
+        display: block; padding: 5px 10px; border-radius: 7px;
+        color: var(--ink); text-decoration: none; border-left: 2px solid transparent;
+      }
+      nav.toc a:hover { background: var(--frame-2); }
+      nav.toc a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-fill); }
+
+      main { min-width: 0; max-width: var(--maxw); }
+      section { scroll-margin-top: 16px; padding-bottom: 8px; }
+      section + section { margin-top: 40px; padding-top: 8px; }
+      h2 { font-size: 24px; letter-spacing: -0.01em; margin: 0 0 6px; }
+      h2 .num { color: var(--accent); font-family: var(--font-mono); font-size: 16px; margin-right: 8px; }
+      h3 { font-size: 17px; margin: 22px 0 6px; }
+      .lead { color: var(--soft); margin-top: 0; }
+      p, li { color: var(--ink); }
+
+      /* ---- Figures (click to zoom) ---- */
+      figure {
+        margin: 18px 0;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--frame);
+      }
+      figure img { display: block; width: 100%; height: auto; cursor: zoom-in; }
+      figure.shot-narrow { max-width: 320px; }
+      figcaption {
+        padding: 9px 14px; font-size: 13px; color: var(--soft);
+        border-top: 1px solid var(--line); background: var(--frame-2);
+      }
+
+      /* ---- Steps ---- */
+      ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 16px 0; }
+      ol.steps > li {
+        position: relative; padding: 4px 0 14px 44px; margin: 0;
+      }
+      ol.steps > li::before {
+        counter-increment: step; content: counter(step);
+        position: absolute; left: 0; top: 0;
+        width: 28px; height: 28px; border-radius: 50%;
+        background: var(--accent); color: #fff;
+        font: 600 14px/28px var(--font-mono); text-align: center;
+      }
+      ol.steps > li::after {
+        content: ""; position: absolute; left: 13px; top: 30px; bottom: 0; width: 2px;
+        background: var(--line);
+      }
+      ol.steps > li:last-child::after { display: none; }
+      ol.steps b { font-weight: 600; }
+
+      /* ---- Callouts ---- */
+      .callout {
+        border: 1px solid var(--line); border-left-width: 4px;
+        border-radius: 10px; padding: 12px 16px; margin: 16px 0; background: var(--frame);
+        font-size: 15px;
+      }
+      .callout .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 4px; }
+      .callout.tip { border-left-color: var(--ok); } .callout.tip .tag { color: var(--ok); }
+      .callout.note { border-left-color: var(--accent); } .callout.note .tag { color: var(--accent); }
+      .callout.warn { border-left-color: var(--warn); } .callout.warn .tag { color: var(--warn); }
+
+      /* ---- Tables / kbd ---- */
+      table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 15px; }
+      th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--soft); }
+      kbd {
+        font-family: var(--font-mono); font-size: 12px; padding: 2px 7px;
+        border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px;
+        background: var(--frame-2); white-space: nowrap;
+      }
+      code { font-family: var(--font-mono); font-size: 0.9em; background: var(--frame-2); padding: 1px 5px; border-radius: 5px; }
+      .pill { display:inline-block; font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--accent); color: var(--accent); }
+
+      footer { border-top: 1px solid var(--line); padding: 24px; text-align: center; color: var(--soft); font-size: 13px; }
+
+      /* ---- Lightbox ---- */
+      .lightbox {
+        position: fixed; inset: 0; z-index: 100; display: none;
+        background: rgb(0 0 0 / 0.8); padding: 32px; cursor: zoom-out;
+        align-items: center; justify-content: center;
+      }
+      .lightbox.open { display: flex; }
+      .lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 10px 40px rgb(0 0 0 / 0.5); }
+
+      /* ---- Responsive: collapse sidebar ---- */
+      @media (max-width: 860px) {
+        .layout { grid-template-columns: 1fr; gap: 20px; }
+        nav.toc { position: static; max-height: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">🌗</button>
+      <p class="eyebrow">User Manual</p>
+      <h1>Space Makeover Visualizer</h1>
+      <p>Photograph a room, then redesign it in real time by <strong>talking to a live AI assistant</strong> that sees your photo, suggests changes, and edits the image on command. This guide walks through every feature.</p>
+    </header>
+
+    <div class="layout">
+      <nav class="toc" aria-label="Contents">
+        <strong>Start here</strong>
+        <a href="#overview">What it is</a>
+        <a href="#getting-started">Getting started</a>
+        <a href="#capture">1. Add a room photo</a>
+        <a href="#workspace">2. The workspace</a>
+        <strong>Editing</strong>
+        <a href="#voice">3. Talk to the assistant</a>
+        <a href="#suggestions">4. Suggestions &amp; directions</a>
+        <a href="#quality">5. Flash vs Pro quality</a>
+        <strong>Review &amp; keep</strong>
+        <a href="#history">6. History, undo &amp; redo</a>
+        <a href="#compare">7. Before / after</a>
+        <a href="#save">8. Download &amp; share</a>
+        <strong>More</strong>
+        <a href="#themes">Themes &amp; mobile</a>
+        <a href="#shortcuts">Keyboard shortcuts</a>
+        <a href="#privacy">Privacy &amp; offline</a>
+        <a href="#trouble">Troubleshooting</a>
+      </nav>
+
+      <main>
+        <section id="overview">
+          <h2><span class="num">§</span>What it is</h2>
+          <p class="lead">A hands-free interior-design tool. You give it a photo of a room; you describe changes out loud (or tap a suggestion); it redesigns the photo and narrates what it did.</p>
+          <p>Two AI layers work together. A <b>voice agent</b> listens and decides what to change, then calls an <b>image editor</b> to actually transform the photo — adding furniture, swapping materials, changing lighting, decluttering — while keeping the room's geometry and perspective. Every version is saved so you can undo, branch, compare, and download the result.</p>
+          <div class="callout note"><span class="tag">Good to know</span>Nothing is installed. The app runs in your browser; you can even add it to your home screen and open it like a native app.</div>
+        </section>
+
+        <section id="getting-started">
+          <h2><span class="num">§</span>Getting started</h2>
+          <ol class="steps">
+            <li><b>Open the app.</b> You'll see the welcome screen with three ways to add a photo.</li>
+            <li><b>Add a room photo</b> — use your camera, upload a file, drag an image in, or tap <b>Use sample</b> to try it instantly.</li>
+            <li><b>Tap the mic and describe a change</b> — e.g. <i>"add a large plant in the corner"</i> — or tap a suggestion.</li>
+            <li><b>Watch it transform.</b> The edit appears in a few seconds and the assistant tells you what changed.</li>
+            <li><b>Keep going</b> — stack more edits, undo, compare before/after, then download or share.</li>
+          </ol>
+        </section>
+
+        <section id="capture">
+          <h2><span class="num">1</span>Add a room photo</h2>
+          <p class="lead">The app opens here. Pick whichever source is easiest.</p>
+          <figure>
+            <img src="images/manual-01-welcome.png" alt="Welcome screen with Use camera, Upload photo, and Use sample buttons" />
+            <figcaption>The welcome / capture screen — four ways in: camera, upload, drag-and-drop, or the built-in sample.</figcaption>
+          </figure>
+          <ul>
+            <li><b>Use camera</b> — take a live photo (your browser will ask permission the first time).</li>
+            <li><b>Upload photo</b> — choose an image file from your device.</li>
+            <li><b>Drag &amp; drop</b> — drop an image straight onto the panel.</li>
+            <li><b>Use sample</b> — load a ready-made room to explore the app with no photo of your own.</li>
+          </ul>
+          <div class="callout tip"><span class="tag">Tip</span>No camera or permission? Upload and the sample always work — the app falls back gracefully and never gets stuck.</div>
+        </section>
+
+        <section id="workspace">
+          <h2><span class="num">2</span>The workspace</h2>
+          <p class="lead">Once a photo is in, everything you need surrounds it. The image stays the star; controls live on a thin edge.</p>
+          <figure>
+            <img src="images/manual-02-workspace.png" alt="The workspace: top bar, room image, voice indicator, suggestion directions, history filmstrip, action buttons" />
+            <figcaption>The workspace (desktop). Top to bottom: top bar · room image · voice assistant · suggested directions · history filmstrip · actions.</figcaption>
+          </figure>
+          <table>
+            <tr><th>Region</th><th>What it does</th></tr>
+            <tr><td><b>Top bar</b></td><td>Compare · Download · Share · Settings — always available, never covers the photo.</td></tr>
+            <tr><td><b>Room image</b></td><td>Your current design. Pinch-zoom / double-tap to inspect details (see below).</td></tr>
+            <tr><td><b>Voice assistant</b></td><td>The mic toggle, status, and live transcript — your main way to make edits.</td></tr>
+            <tr><td><b>Suggestions</b></td><td>Quick edits to tap. On wide screens these are richer "direction" cards.</td></tr>
+            <tr><td><b>History filmstrip</b></td><td>Every version as a thumbnail; the active one is ringed. Tap to revert.</td></tr>
+            <tr><td><b>Actions</b></td><td>Try a sample edit · Undo · Redo · New photo.</td></tr>
+          </table>
+          <h3>Inspect the image: pinch-zoom &amp; pan</h3>
+          <p>On a touch screen, <b>pinch</b> to zoom into the photo and drag to pan; on desktop, <b>double-click</b> to zoom and drag to move. Double-tap (or double-click) again to reset. Zoom resets automatically whenever a new edit appears.</p>
+        </section>
+
+        <section id="voice">
+          <h2><span class="num">3</span>Talk to the assistant</h2>
+          <p class="lead">Tap the mic, then just describe what you want. The assistant can see your photo, so you can be specific or vague.</p>
+          <figure class="shot-narrow">
+            <img src="images/manual-07-voice.png" alt="Voice indicator showing Listening status and a chat transcript between the user and the AI" />
+            <figcaption>The transcript shows both sides of the conversation — your words and the assistant's replies.</figcaption>
+          </figure>
+          <ol class="steps">
+            <li><b>Tap the mic</b> to start. The status reads <i>Listening…</i> and a pulsing ring appears.</li>
+            <li><b>Say a change</b>, e.g. <i>"replace the grey sofa with tan leather"</i> or <i>"paint the walls sage green."</i></li>
+            <li><b>The assistant edits and narrates</b> — the status moves through <i>Editing…</i> → <i>Speaking…</i> and the new image swaps in.</li>
+            <li><b>Tap the mic again</b> to end the session.</li>
+          </ol>
+          <p><b>Status meanings:</b> <span class="pill">Listening</span> hearing you · <span class="pill">Editing</span> applying the change · <span class="pill">Speaking</span> describing the result.</p>
+          <div class="callout note"><span class="tag">Be concrete</span>Name a subject and a change ("add a <i>floor lamp</i> by the window"). Specific requests give the best edits.</div>
+          <div class="callout tip"><span class="tag">No microphone?</span>Tap a suggestion chip or direction card instead — they run the same edits without voice.</div>
+        </section>
+
+        <section id="suggestions">
+          <h2><span class="num">4</span>Suggestions &amp; directions</h2>
+          <p class="lead">Not sure what to say? The app offers ready-made starting points — tap one and it runs immediately.</p>
+          <figure>
+            <img src="images/manual-03-edited.png" alt="The room restyled with a green sofa and plants, with direction cards below" />
+            <figcaption>On wide screens you get three <b>direction cards</b> (whole-room restyles). On phones these become compact <b>chips</b> like “Add plants” and “Warmer walls.”</figcaption>
+          </figure>
+          <ul>
+            <li><b>Direction cards</b> (desktop) — bigger restyles such as <i>Warm minimal</i>, <i>Bold &amp; green</i>, and <i>Mid-century</i>.</li>
+            <li><b>Suggestion chips</b> (mobile) — quick single changes: <i>Add plants</i>, <i>Warmer walls</i>, <i>Cozy + modern</i>, <i>Declutter</i>.</li>
+          </ul>
+          <p>Each suggestion edits whatever image you're currently on, so you can chain them — start from a direction, then refine by voice.</p>
+        </section>
+
+        <section id="quality">
+          <h2><span class="num">5</span>Flash vs Pro quality</h2>
+          <p class="lead">Open <b>Settings</b> (top bar) to choose how edits are rendered.</p>
+          <figure>
+            <img src="images/manual-05-settings.png" alt="Settings popover offering Flash and Pro edit-quality options" />
+            <figcaption>The Settings popover. Flash is the fast default; Pro is higher quality.</figcaption>
+          </figure>
+          <table>
+            <tr><th>Mode</th><th>Best for</th></tr>
+            <tr><td><b>Flash</b> (default)</td><td>Fast, great for iterating quickly while you explore ideas.</td></tr>
+            <tr><td><b>Pro</b></td><td>Highest quality, up to 4K — a little slower and more costly. Use it for the final render.</td></tr>
+          </table>
+          <p>Your choice applies to both voice edits and tapped suggestions. When Pro is on, a hint appears beneath the photo as a reminder.</p>
+        </section>
+
+        <section id="history">
+          <h2><span class="num">6</span>History, undo &amp; redo</h2>
+          <p class="lead">Every successful edit is saved as a version. Nothing is lost, and your session survives a page refresh.</p>
+          <figure>
+            <img src="images/manual-04-history.png" alt="History filmstrip with the original photo and two edited thumbnails, the active one ringed" />
+            <figcaption>The filmstrip — oldest (★ original) to newest. The ringed thumbnail is what you're viewing.</figcaption>
+          </figure>
+          <ul>
+            <li><b>Tap any thumbnail</b> to jump back to that version.</li>
+            <li><b>Undo / Redo</b> with the buttons, or <kbd>⌘/Ctrl</kbd> + <kbd>Z</kbd> and <kbd>⌘/Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>.</li>
+            <li><b>Branch</b> — edit from an earlier version and the timeline forks from that point.</li>
+          </ul>
+          <div class="callout note"><span class="tag">Saved automatically</span>Your history is stored on your device, so closing or refreshing the tab won't wipe your work. <b>New photo</b> clears it and starts fresh.</div>
+        </section>
+
+        <section id="compare">
+          <h2><span class="num">7</span>Before / after</h2>
+          <p class="lead">Tap <b>Compare</b> in the top bar to see the original and your current design side by side.</p>
+          <figure>
+            <img src="images/manual-06-compare.png" alt="Before/after slider: original room on the left, redesigned room on the right" />
+            <figcaption>Drag the divider to wipe between <b>Before</b> (your original, left) and <b>After</b> (the current edit, right).</figcaption>
+          </figure>
+          <p>Drag the handle with your mouse or finger, or focus it and use <kbd>←</kbd> / <kbd>→</kbd> (and <kbd>Home</kbd> / <kbd>End</kbd>). Tap <b>Exit compare</b> to return.</p>
+        </section>
+
+        <section id="save">
+          <h2><span class="num">8</span>Download &amp; share</h2>
+          <p class="lead">Happy with the result? Keep it from the top bar.</p>
+          <figure class="shot-narrow">
+            <img src="images/manual-08-topbar.png" alt="Top bar with Compare, Download, Share, and Settings buttons" />
+            <figcaption>The top bar — Download saves the image; Share opens your device's share sheet.</figcaption>
+          </figure>
+          <ul>
+            <li><b>Download</b> — saves the current image to your device as a JPEG.</li>
+            <li><b>Share</b> — on supported devices, opens the native share sheet to send it to Messages, email, etc. Elsewhere it falls back to a download.</li>
+          </ul>
+        </section>
+
+        <section id="themes">
+          <h2><span class="num">§</span>Themes &amp; mobile</h2>
+          <p class="lead">The app follows your system light/dark setting, and you can override it with the toggle (top-right).</p>
+          <figure>
+            <img src="images/manual-10-dark.png" alt="The app in dark theme" />
+            <figcaption>Dark theme. Tap the moon/sun toggle to cycle system → light → dark; your choice is remembered.</figcaption>
+          </figure>
+          <figure class="shot-narrow">
+            <img src="images/manual-09-mobile.png" alt="The app on a phone-sized screen with suggestion chips" />
+            <figcaption>On phones the layout adapts — controls stack and suggestions become compact chips.</figcaption>
+          </figure>
+        </section>
+
+        <section id="shortcuts">
+          <h2><span class="num">§</span>Keyboard shortcuts</h2>
+          <table>
+            <tr><th>Action</th><th>Shortcut</th></tr>
+            <tr><td>Undo</td><td><kbd>⌘</kbd> <kbd>Z</kbd> &nbsp;/&nbsp; <kbd>Ctrl</kbd> <kbd>Z</kbd></td></tr>
+            <tr><td>Redo</td><td><kbd>⌘</kbd> <kbd>Shift</kbd> <kbd>Z</kbd> &nbsp;/&nbsp; <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd></td></tr>
+            <tr><td>Move compare divider</td><td><kbd>←</kbd> <kbd>→</kbd> (and <kbd>Home</kbd> / <kbd>End</kbd>)</td></tr>
+            <tr><td>Close a popover (Settings)</td><td><kbd>Esc</kbd></td></tr>
+          </table>
+          <p>Everything is reachable by keyboard, with visible focus outlines throughout.</p>
+        </section>
+
+        <section id="privacy">
+          <h2><span class="num">§</span>Privacy &amp; offline</h2>
+          <p>Your photo and voice are sent securely to the AI service <b>only to perform the edits you ask for</b>. The app is built so credentials stay server-side — they are never exposed in the page.</p>
+          <p>The app is installable (a Progressive Web App): add it to your home screen and the interface loads even offline. Making edits still needs a connection, since the AI runs in the cloud.</p>
+        </section>
+
+        <section id="trouble">
+          <h2><span class="num">§</span>Troubleshooting</h2>
+          <p class="lead">Problems surface as a brief, non-blocking message at the bottom of the screen — the app keeps working.</p>
+          <figure>
+            <img src="images/manual-11-toast.png" alt="A non-blocking error toast at the bottom of the screen" />
+            <figcaption>An error toast. Dismiss it with ✕; it also clears on its own.</figcaption>
+          </figure>
+          <table>
+            <tr><th>Symptom</th><th>What to do</th></tr>
+            <tr><td>Camera or mic permission denied</td><td>Use <b>Upload</b> / <b>Use sample</b>, or re-enable permission in your browser's site settings and tap the mic again.</td></tr>
+            <tr><td>"Voice connection dropped"</td><td>Tap the mic to reconnect. Your photo and history are unaffected.</td></tr>
+            <tr><td>An edit didn't do what you meant</td><td>Undo, then rephrase more specifically (name the object and the change).</td></tr>
+            <tr><td>Want to start over</td><td>Tap <b>New photo</b> — it clears the session and returns to the welcome screen.</td></tr>
+          </table>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      Space Makeover Visualizer — interactive user manual. Tap any screenshot to enlarge.
+    </footer>
+
+    <!-- Lightbox overlay -->
+    <div class="lightbox" id="lightbox" aria-hidden="true"><img id="lightbox-img" alt="" /></div>
+
+    <script>
+      // ---- Theme toggle (system → light → dark), persisted ----
+      const root = document.documentElement;
+      const tbtn = document.getElementById("theme-toggle");
+      const ICON = { light: "☀️", dark: "🌙", system: "🌗" };
+      const readTheme = () => {
+        const v = localStorage.getItem("smv-theme");
+        return v === "light" || v === "dark" ? v : null;
+      };
+      const applyTheme = (choice) => {
+        if (choice) root.dataset.theme = choice; else delete root.dataset.theme;
+        tbtn.textContent = ICON[choice || "system"];
+        tbtn.title = "Theme: " + (choice || "system");
+      };
+      applyTheme(readTheme());
+      tbtn.addEventListener("click", () => {
+        const cur = readTheme() || "system";
+        const next = cur === "system" ? "light" : cur === "light" ? "dark" : "system";
+        if (next === "system") localStorage.removeItem("smv-theme");
+        else localStorage.setItem("smv-theme", next);
+        applyTheme(next === "system" ? null : next);
+      });
+
+      // ---- Scroll-spy: highlight the current section in the sidebar ----
+      const links = [...document.querySelectorAll("nav.toc a")];
+      const byId = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
+      const spy = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) {
+              links.forEach((l) => l.classList.remove("active"));
+              byId.get(e.target.id)?.classList.add("active");
+            }
+          }
+        },
+        { rootMargin: "-10% 0px -75% 0px", threshold: 0 }
+      );
+      document.querySelectorAll("main section[id]").forEach((s) => spy.observe(s));
+
+      // ---- Lightbox: click any figure image to enlarge ----
+      const lb = document.getElementById("lightbox");
+      const lbImg = document.getElementById("lightbox-img");
+      document.querySelectorAll("figure img").forEach((img) => {
+        img.addEventListener("click", () => {
+          lbImg.src = img.src;
+          lbImg.alt = img.alt;
+          lb.classList.add("open");
+          lb.setAttribute("aria-hidden", "false");
+        });
+      });
+      const closeLb = () => { lb.classList.remove("open"); lb.setAttribute("aria-hidden", "true"); lbImg.src = ""; };
+      lb.addEventListener("click", closeLb);
+      addEventListener("keydown", (e) => { if (e.key === "Escape") closeLb(); });
+    </script>
+  </body>
+</html>
