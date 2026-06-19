@@ -6,20 +6,22 @@
     <title>Space Makeover Visualizer — User Manual</title>
     <meta name="description" content="An interactive guide to photographing a room and redesigning it by talking to a live AI assistant." />
     <style>
-      /* ---- Design tokens (mirror the app; one var-swap via light-dark()) ---- */
+      /* ---- Design tokens ---- */
+      /* Surfaces/text/line/accent/bad match the app's styles.css exactly; --frame-2, --ok and
+         --warn are doc-only extras (the app doesn't define them) used by this manual's UI. */
       :root {
         color-scheme: light dark;
         --bg: light-dark(#e8e8e4, #19191b);
         --frame: light-dark(#ffffff, #242528);
-        --frame-2: light-dark(#f3f3ef, #1f2022);
+        --frame-2: light-dark(#f3f3ef, #1f2022); /* doc-only */
         --ink: light-dark(#2c2c29, #ececea);
-        --soft: light-dark(#6a6a63, #9b9b94);
-        --line: light-dark(#d9d9d3, #34343a);
-        --accent: light-dark(oklch(0.55 0.12 250), oklch(0.74 0.12 250));
+        --soft: light-dark(#76766f, #9b9b94);
+        --line: light-dark(#d4d4cf, #3a3a3e);
+        --accent: light-dark(oklch(0.55 0.12 250), oklch(0.72 0.12 250));
         --accent-fill: light-dark(oklch(0.955 0.022 250), oklch(0.34 0.05 250));
-        --ok: light-dark(oklch(0.55 0.11 150), oklch(0.72 0.12 150));
-        --warn: light-dark(oklch(0.62 0.13 70), oklch(0.78 0.13 80));
-        --bad: light-dark(oklch(0.55 0.17 25), oklch(0.72 0.17 25));
+        --ok: light-dark(oklch(0.55 0.11 150), oklch(0.72 0.12 150)); /* doc-only */
+        --warn: light-dark(oklch(0.62 0.13 70), oklch(0.78 0.13 80)); /* doc-only */
+        --bad: light-dark(oklch(0.55 0.17 25), oklch(0.7 0.17 25));
         --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
         --font-mono: "IBM Plex Mono", ui-monospace, monospace;
         --radius: 14px;
@@ -416,7 +418,7 @@
       const tbtn = document.getElementById("theme-toggle");
       const ICON = { light: "☀️", dark: "🌙", system: "🌗" };
       const readTheme = () => {
-        const v = localStorage.getItem("smv-manual-theme");
+        const v = localStorage.getItem("smv-theme");
         return v === "light" || v === "dark" ? v : null;
       };
       const applyTheme = (choice) => {
@@ -428,8 +430,8 @@
       tbtn.addEventListener("click", () => {
         const cur = readTheme() || "system";
         const next = cur === "system" ? "light" : cur === "light" ? "dark" : "system";
-        if (next === "system") localStorage.removeItem("smv-manual-theme");
-        else localStorage.setItem("smv-manual-theme", next);
+        if (next === "system") localStorage.removeItem("smv-theme");
+        else localStorage.setItem("smv-theme", next);
         applyTheme(next === "system" ? null : next);
       });
 
