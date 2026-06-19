@@ -28,6 +28,7 @@ import { stopVoiceSession } from "./actions/voiceSession.js";
 import { undo, redo, clearHistory, applyRestoredSession } from "./actions/history.js";
 import { downloadImage, shareImage } from "./actions/exportImage.js";
 import { loadSession } from "./db/idb.js";
+import { attachZoomPan } from "./zoomPan.js";
 
 const SAMPLE_PROMPT = "Add a large leafy potted houseplant in the empty corner of the room, matching the existing lighting and perspective.";
 
@@ -39,11 +40,20 @@ const SUGGESTIONS = [
   { label: "Declutter", prompt: "Declutter the room — remove clutter and excess objects for a clean, tidy, well-staged look." },
 ];
 
+// Desktop "three directions" cards (wireframe §K3) — whole-room restyles, richer than the chips.
+const DIRECTIONS = [
+  { title: "Warm minimal", desc: "Oak tones, fewer objects, soft light.", prompt: "Restyle this room in a warm minimal style — light oak/wood tones, fewer objects, soft natural light — keeping the existing layout and perspective." },
+  { title: "Bold & green", desc: "Deep green sofa, lots of plants.", prompt: "Restyle this room boldly — a deep green sofa and lots of leafy plants — keeping the room's geometry and perspective." },
+  { title: "Mid-century", desc: "Walnut, brass, warm accents.", prompt: "Restyle this room in mid-century modern style — walnut wood, brass accents, warm tones — keeping the layout and perspective." },
+];
+
 // --- DOM references ---
 const capture = document.getElementById("capture");
 const topbar = document.getElementById("topbar");
 const imageView = document.getElementById("image-view");
 const voice = document.getElementById("voice");
+const directions = document.getElementById("directions");
+const dirGrid = document.getElementById("dir-grid");
 const suggestions = document.getElementById("suggestions");
 const historyStrip = document.getElementById("history");
 const actions = document.getElementById("actions");
@@ -69,6 +79,26 @@ const chipButtons = SUGGESTIONS.map(({ label, prompt }) => {
   return btn;
 });
 
+// Build the desktop direction cards once (title + description); each runs a whole-room restyle.
+const directionCards = DIRECTIONS.map(({ title, desc, prompt }) => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "direction";
+  const t = document.createElement("span");
+  t.className = "dir-title";
+  t.textContent = title;
+  const d = document.createElement("span");
+  d.className = "dir-desc";
+  d.textContent = desc;
+  btn.append(t, d);
+  btn.addEventListener("click", () => runEdit(prompt));
+  dirGrid.append(btn);
+  return btn;
+});
+
+// Pinch-zoom + pan on the active image (mobile gesture; double-click/drag on desktop).
+attachZoomPan(imageView, img);
+
 // --- Blob-URL lifecycle tracking (every createObjectURL needs a matching revoke) ---
 let renderedBlob = null; // the Blob currently shown (compare by identity, NOT URL string)
 let renderedUrl = null; // its object URL, revoked when replaced
@@ -86,6 +116,7 @@ function render(state) {
   imageView.hidden = !hasPhoto || comparing;
   compareView.hidden = !comparing;
   voice.hidden = !hasPhoto;
+  directions.hidden = !hasPhoto; // CSS shows this on desktop, chips on mobile
   suggestions.hidden = !hasPhoto;
   historyStrip.hidden = !hasPhoto;
   actions.hidden = !hasPhoto;
@@ -102,8 +133,9 @@ function render(state) {
   downloadButton.disabled = state.editingInFlight;
   shareButton.disabled = state.editingInFlight;
 
-  // Suggestion chips are disabled while an edit is running.
+  // Suggestion chips + direction cards are disabled while an edit is running.
   for (const chip of chipButtons) chip.disabled = state.editingInFlight;
+  for (const card of directionCards) card.disabled = state.editingInFlight;
 
   // Undo/Redo enablement mirrors the history pointer.
   undoButton.disabled = state.editingInFlight || state.historyIndex <= 0;

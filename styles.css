@@ -151,7 +151,8 @@ body {
 #history,
 #compare-view,
 #topbar,
-#suggestions {
+#suggestions,
+#directions {
   width: 100%;
 }
 
@@ -186,6 +187,60 @@ body {
 .chip:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Direction cards (wireframe §K3) — desktop-only richer opener; mobile uses the chips instead. */
+.directions {
+  display: none;
+}
+.dir-intro {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--soft);
+  text-align: center;
+}
+.dir-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.direction {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--frame);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease, filter 0.15s ease;
+}
+.direction:hover:not(:disabled) {
+  border-color: var(--accent);
+  filter: brightness(0.99);
+}
+.direction:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.dir-title {
+  font: 600 13px/1.2 var(--font-sans);
+}
+.dir-desc {
+  font-size: 12px;
+  color: var(--soft);
+}
+
+/* On wide viewports show the direction cards and hide the compact chips. */
+@media (min-width: 768px) {
+  #suggestions {
+    display: none;
+  }
+  #directions:not([hidden]) {
+    display: block;
+  }
 }
 
 /* Pro-render hint. */
