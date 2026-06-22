@@ -31,6 +31,7 @@ const BLOCKED = /^\/(server\/|\.env|\.git\/)/;
 
 const server = Bun.serve({
   port: PORT,
+  hostname: "0.0.0.0",
   async fetch(req, server) {
     const url = new URL(req.url);
     // decodeURIComponent throws on malformed percent-encoding (e.g. a bare "%"). Guard it so a
