@@ -12,7 +12,7 @@ import { recordEdit } from "./history.js";
 // Guards against concurrent edits and a missing image. Returns true on success, false otherwise
 // (so the voice tool-call handler can report the outcome back to the Live agent).
 export async function runEdit(prompt) {
-  const { activeImage, editingInFlight, editingModel } = getState();
+  const { activeImage, editingInFlight, editingModel, referenceImages } = getState();
   if (editingInFlight) {
     console.warn("[editImage] edit already in flight — ignoring request.");
     return false;
@@ -27,7 +27,10 @@ export async function runEdit(prompt) {
 
   try {
     const model = editingModel === "pro" ? MODELS.pro : MODELS.flash;
-    const edited = await apiEditImage(activeImage, prompt, model);
+    // Attached reference items (Pass 6) ride along with EVERY edit — the framing text in
+    // apiClient tells the model to use them only when the instruction refers to them.
+    const references = referenceImages.map((r) => r.image);
+    const edited = await apiEditImage(activeImage, prompt, model, references);
     console.log("[editImage] edit complete:", edited.type, edited.size, "bytes");
     // recordEdit sets activeImage + history; clear the in-flight flag in the SAME synchronous
     // run (batched into one render) so there's never a frame with the flag off but the old image.

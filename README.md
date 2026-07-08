@@ -94,9 +94,23 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
 - **PWA:** `manifest.webmanifest` + canvas-generated 192/512 icons + a service worker (`sw.js`) that
   precaches the app shell and serves it offline (inference still needs network); `/api/*` is never cached.
 
-**All five passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
-it via function calling → review the persisted history (undo/redo/branch) → compare before/after →
-opt into Pro renders → installable, themed, and accessible.
+### Pass 6 — Reference Items ✅
+- **Tray:** `<reference-tray>` ("Your items") — attach up to 4 photos of specific objects, furniture,
+  decor, tiles, or wallpaper via a file picker (multi-select) or drag-and-drop; thumbnails with remove,
+  a live n/4 count, and per-id Blob-URL revocation. Non-images and over-cap attempts toast.
+- **Edits:** attached items ride along with **every** edit — the room image goes first, each reference
+  after it, with framing text that scopes their use to instructions that refer to them. A one-tap
+  **Add to room** button incorporates everything attached (place furniture/decor, apply materials to
+  the right surfaces).
+- **Voice:** the live agent is shown each attached item (on session start and the moment one is added)
+  and its instructions cover using them — "add the armchair from the reference photo next to the window".
+- **Persistence:** references are part of the saved session, so a reload restores the tray;
+  "New photo" clears it.
+
+**All six passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
+it via function calling → attach photos of specific items/materials to work into the design → review
+the persisted history (undo/redo/branch) → compare before/after → opt into Pro renders → installable,
+themed, and accessible.
 
 ### Known manual-verification items
 Real camera capture, live mic/speaker audio, reduced-motion under OS emulation, and Lighthouse

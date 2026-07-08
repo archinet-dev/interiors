@@ -19,6 +19,8 @@ const SYSTEM_INSTRUCTION = `You are a friendly, concise interior-design assistan
 
 When the user asks for a change to the room, call the editImage tool with a CONCRETE, specific prompt that names the subject and the change — e.g. "replace the grey sofa with a tan leather sofa", "paint the walls sage green", "add a large potted fiddle-leaf fig in the empty corner". Preserve the room's geometry, perspective, and lighting. Do not call the tool for general chit-chat or questions.
 
+The user may also attach reference photos of specific items — furniture, decor, tiles, wallpaper, or other materials — that they want in the room. You will be shown each one. Attached reference photos are automatically included with every editImage call, so when the user asks to use one, call editImage with a prompt that explicitly refers to it and says where to put or apply it — e.g. "add the armchair from the reference photo next to the window", "retile the floor with the tile shown in the reference photo".
+
 After an edit completes you will receive the updated photo; describe what changed in ONE short spoken sentence. Keep all spoken replies brief and natural.`;
 
 const editImageTool = {
@@ -99,8 +101,10 @@ export async function startVoiceSession() {
     }
     session = live;
 
-    // Send the current photo as visual context on session start (spec).
+    // Send the current photo as visual context on session start (spec), then any attached
+    // reference items (Pass 6) so the agent knows what the user wants to work in.
     await sendImageContext(contextImage, "Here is the room photo I'm working with.");
+    for (const ref of getState().referenceImages) await sendReferenceContext(ref.image);
 
     // Start mic capture → stream PCM frames to the session.
     mic = await startMicCapture((pcmBuffer) => {
@@ -147,6 +151,16 @@ export async function stopVoiceSession() {
   } finally {
     stopping = false;
   }
+}
+
+// Show the agent a reference item the user attached (Pass 6). No-op when no session is open —
+// startVoiceSession sends whatever is attached at that point instead.
+export async function sendReferenceContext(blob) {
+  if (!session) return;
+  await sendImageContext(
+    blob,
+    "The user attached this reference photo of an item or material they may want to use in the room."
+  );
 }
 
 // Send a text turn (used as a fallback and for automated testing of the tool-call bridge).
