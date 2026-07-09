@@ -50,6 +50,7 @@ R3. Restored sessions predate this pass (no referenceImages key). Mitigation:
 | `js/main.js` | mod | Imports the component; toggles tray visibility; "New photo" clears references. |
 | `index.html` | mod | `<reference-tray id="references">` between suggestions and the filmstrip. |
 | `styles.css` | mod | `#references` joins the full-width workspace group. |
+| `sw.js` | mod | Precache the two new modules (cache bumped to `smv-shell-v5`) so the offline shell's module graph stays intact. |
 | `docs/manual.html` | mod | New "Add your own items" section + TOC entry. |
 | `README.md` | mod | Capability ledger entry for Pass 6. |
 

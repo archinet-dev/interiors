@@ -30,11 +30,14 @@ export function addReference(blob) {
     setState({ error: `You can attach up to ${MAX_REFERENCES} item photos — remove one first.` });
     return false;
   }
+  // Deliberately do NOT clear state.error here: in a multi-file batch a rejected file's error
+  // and a later file's success coalesce into one render, and clearing would eat the toast.
   const entry = { id: crypto.randomUUID(), image: blob, ts: Date.now() };
-  setState({ referenceImages: [...referenceImages, entry], error: null });
+  setState({ referenceImages: [...referenceImages, entry] });
   persistSession();
   // If a voice session is live, show the agent what the user just attached (fire-and-forget).
-  sendReferenceContext(blob).catch((err) => console.warn("[references] voice context failed:", err));
+  // The whole entry is passed so voiceSession can dedupe by id against its own startup send.
+  sendReferenceContext(entry).catch((err) => console.warn("[references] voice context failed:", err));
   console.log("[references] attached:", blob.type, blob.size, "bytes");
   return true;
 }

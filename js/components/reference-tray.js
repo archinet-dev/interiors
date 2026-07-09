@@ -107,9 +107,9 @@ class ReferenceTray extends HTMLElement {
       else if (act === "place") placeReferences();
     };
     this.#onFileChange = () => {
-      for (const file of this.$file.files ?? []) {
-        if (!addReference(file)) break; // stop at the first rejection (cap / not an image)
-      }
+      // Attempt every file: a rejected one (non-image / cap) toasts but must not block the
+      // valid files behind it in the same multi-select.
+      for (const file of this.$file.files ?? []) addReference(file);
       this.$file.value = ""; // allow re-selecting the same file
     };
     this.#onDragOver = (e) => {
@@ -120,9 +120,7 @@ class ReferenceTray extends HTMLElement {
     this.#onDrop = (e) => {
       e.preventDefault();
       this.$tray.classList.remove("dragover");
-      for (const file of e.dataTransfer?.files ?? []) {
-        if (!addReference(file)) break;
-      }
+      for (const file of e.dataTransfer?.files ?? []) addReference(file);
     };
   }
 
