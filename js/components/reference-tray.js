@@ -108,8 +108,11 @@ class ReferenceTray extends HTMLElement {
     };
     this.#onFileChange = () => {
       // Attempt every file: a rejected one (non-image / cap) toasts but must not block the
-      // valid files behind it in the same multi-select.
-      for (const file of this.$file.files ?? []) addReference(file);
+      // valid files behind it in the same multi-select. Honor the edit lock (the buttons are
+      // disabled while an edit runs, so the drop/picker paths must not slip past it).
+      if (!getState().editingInFlight) {
+        for (const file of this.$file.files ?? []) addReference(file);
+      }
       this.$file.value = ""; // allow re-selecting the same file
     };
     this.#onDragOver = (e) => {
@@ -120,6 +123,7 @@ class ReferenceTray extends HTMLElement {
     this.#onDrop = (e) => {
       e.preventDefault();
       this.$tray.classList.remove("dragover");
+      if (getState().editingInFlight) return; // same edit lock as the (disabled) buttons
       for (const file of e.dataTransfer?.files ?? []) addReference(file);
     };
   }

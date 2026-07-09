@@ -171,11 +171,16 @@ export async function sendReferenceContext(ref) {
 async function sendReferenceTo(target, ref) {
   if (sentRefIds.has(ref.id)) return;
   sentRefIds.add(ref.id); // mark BEFORE the await so a concurrent send of the same ref dedupes
-  await sendImageContext(
-    target,
-    ref.image,
-    "The user attached this reference photo of an item or material they may want to use in the room."
-  );
+  try {
+    await sendImageContext(
+      target,
+      ref.image,
+      "The user attached this reference photo of an item or material they may want to use in the room."
+    );
+  } catch (err) {
+    sentRefIds.delete(ref.id); // send failed — leave it eligible so a later attempt can retry
+    throw err;
+  }
 }
 
 // Send a text turn (used as a fallback and for automated testing of the tool-call bridge).
