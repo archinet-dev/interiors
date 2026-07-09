@@ -170,6 +170,8 @@ export async function sendReferenceContext(ref) {
 // Send one reference to a specific session instance, at most once per session.
 async function sendReferenceTo(target, ref) {
   if (sentRefIds.has(ref.id)) return;
+  // Don't brief the agent on an item the user removed while earlier sends were in flight.
+  if (!getState().referenceImages.some((r) => r.id === ref.id)) return;
   sentRefIds.add(ref.id); // mark BEFORE the await so a concurrent send of the same ref dedupes
   try {
     await sendImageContext(
