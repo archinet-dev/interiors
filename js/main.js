@@ -16,6 +16,7 @@ import "./components/camera-capture.js";
 import "./components/voice-indicator.js";
 import "./components/edit-history.js";
 import "./components/before-after.js";
+import "./components/reference-tray.js";
 import "./settings.js";
 import "./theme.js";
 import "./toast.js";
@@ -26,6 +27,7 @@ import { runEdit } from "./actions/editImage.js";
 import { setPhoto } from "./actions/setPhoto.js";
 import { stopVoiceSession } from "./actions/voiceSession.js";
 import { undo, redo, clearHistory, applyRestoredSession } from "./actions/history.js";
+import { clearReferences } from "./actions/references.js";
 import { downloadImage, shareImage } from "./actions/exportImage.js";
 import { loadSession } from "./db/idb.js";
 import { attachZoomPan } from "./zoomPan.js";
@@ -55,6 +57,7 @@ const voice = document.getElementById("voice");
 const directions = document.getElementById("directions");
 const dirGrid = document.getElementById("dir-grid");
 const suggestions = document.getElementById("suggestions");
+const references = document.getElementById("references");
 const historyStrip = document.getElementById("history");
 const actions = document.getElementById("actions");
 const img = document.getElementById("room-image");
@@ -118,6 +121,7 @@ function render(state) {
   voice.hidden = !hasPhoto;
   directions.hidden = !hasPhoto; // CSS shows this on desktop, chips on mobile
   suggestions.hidden = !hasPhoto;
+  references.hidden = !hasPhoto;
   historyStrip.hidden = !hasPhoto;
   actions.hidden = !hasPhoto;
 
@@ -201,6 +205,7 @@ compareButton.addEventListener("click", () => {
 retakeButton.addEventListener("click", () => {
   stopVoiceSession();
   clearHistory();
+  clearReferences(); // a new room means new items
   setState({ sourceImage: null, activeImage: null, error: null, comparing: false });
 });
 

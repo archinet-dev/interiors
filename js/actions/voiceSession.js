@@ -19,6 +19,8 @@ const SYSTEM_INSTRUCTION = `You are a friendly, concise interior-design assistan
 
 When the user asks for a change to the room, call the editImage tool with a CONCRETE, specific prompt that names the subject and the change — e.g. "replace the grey sofa with a tan leather sofa", "paint the walls sage green", "add a large potted fiddle-leaf fig in the empty corner". Preserve the room's geometry, perspective, and lighting. Do not call the tool for general chit-chat or questions.
 
+The user may also attach reference photos of specific items — furniture, decor, tiles, wallpaper, or other materials — that they want in the room. You will be shown each one. Attached reference photos are automatically included with every editImage call, so when the user asks to use one, call editImage with a prompt that explicitly refers to it and says where to put or apply it — e.g. "add the armchair from the reference photo next to the window", "retile the floor with the tile shown in the reference photo".
+
 After an edit completes you will receive the updated photo; describe what changed in ONE short spoken sentence. Keep all spoken replies brief and natural.`;
 
 const editImageTool = {
@@ -39,6 +41,7 @@ const editImageTool = {
 let session = null;
 let mic = null;
 let player = null;
+let sentRefIds = new Set(); // reference ids already shown to the CURRENT session (dedupe)
 let handlingTool = false; // true while the queue drain loop is running (serializes edits)
 let pendingToolCalls = []; // FIFO queue of functionCalls awaiting an editImage + tool response
 let startGeneration = 0; // bumped each startVoiceSession; lets a slow connect detect it was superseded
@@ -98,9 +101,14 @@ export async function startVoiceSession() {
       return;
     }
     session = live;
+    sentRefIds = new Set(); // fresh session — nothing has been shown to it yet
 
-    // Send the current photo as visual context on session start (spec).
-    await sendImageContext(contextImage, "Here is the room photo I'm working with.");
+    // Send the current photo as visual context on session start (spec), then any attached
+    // reference items (Pass 6) so the agent knows what the user wants to work in. Sends are
+    // bound to THIS instance (live): if a stop/restart lands while one is awaited, the helper
+    // sees the instance was superseded and no-ops instead of leaking into a newer session.
+    await sendImageContext(live, contextImage, "Here is the room photo I'm working with.");
+    for (const ref of getState().referenceImages) await sendReferenceTo(live, ref);
 
     // Start mic capture → stream PCM frames to the session.
     mic = await startMicCapture((pcmBuffer) => {
@@ -146,6 +154,34 @@ export async function stopVoiceSession() {
     setState({ voiceStatus: "idle", voiceActive: false });
   } finally {
     stopping = false;
+  }
+}
+
+// Show the agent a reference item the user attached (Pass 6). Takes the whole entry
+// ({ id, image }) so per-session dedupe works: a reference attached while the session is still
+// starting up would otherwise be sent both here and by the startup loop. No-op when no session
+// is open — startVoiceSession sends whatever is attached at that point instead.
+export async function sendReferenceContext(ref) {
+  const target = session; // bind to the instance open NOW, not whatever exists after the await
+  if (!target) return;
+  await sendReferenceTo(target, ref);
+}
+
+// Send one reference to a specific session instance, at most once per session.
+async function sendReferenceTo(target, ref) {
+  if (sentRefIds.has(ref.id)) return;
+  // Don't brief the agent on an item the user removed while earlier sends were in flight.
+  if (!getState().referenceImages.some((r) => r.id === ref.id)) return;
+  sentRefIds.add(ref.id); // mark BEFORE the await so a concurrent send of the same ref dedupes
+  try {
+    await sendImageContext(
+      target,
+      ref.image,
+      "The user attached this reference photo of an item or material they may want to use in the room."
+    );
+  } catch (err) {
+    sentRefIds.delete(ref.id); // send failed — leave it eligible so a later attempt can retry
+    throw err;
   }
 }
 
@@ -217,7 +253,7 @@ async function drainToolCalls() {
       // After a successful edit, send the updated image back so the agent can describe it (spec).
       if (ok) {
         const { activeImage } = getState();
-        if (activeImage) await sendImageContext(activeImage, "Here is the updated room after that edit.");
+        if (activeImage) await sendImageContext(session, activeImage, "Here is the updated room after that edit.");
       }
     }
   } finally {
@@ -240,11 +276,14 @@ function appendTranscript(role, text) {
   setState({ voiceTranscript: list });
 }
 
-// Send an image to the agent as a user content turn so it can ground its suggestions.
-async function sendImageContext(blob, text) {
-  if (!session) return;
+// Send an image to a SPECIFIC session instance as a user content turn. Guarded against the
+// instance being closed or superseded (stop/restart) while the blob is being read — re-reading
+// the global `session` after an await could otherwise route the send into a newer session.
+async function sendImageContext(target, blob, text) {
+  if (!target || target !== session) return;
   const data = await blobToBase64(blob);
-  session.sendClientContent({
+  if (target !== session) return; // stopped/superseded while reading the blob
+  target.sendClientContent({
     turns: [{ role: "user", parts: [{ text }, { inlineData: { mimeType: blob.type || "image/jpeg", data } }] }],
   });
 }

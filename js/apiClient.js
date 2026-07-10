@@ -30,16 +30,25 @@ export const ai = new GoogleGenAI({
 });
 
 // Edit an image with a natural-language instruction. Returns a new image Blob.
-export async function editImage(blob, prompt, model = MODELS.flash) {
-  const base64 = await blobToBase64(blob);
+// `references` (Pass 6) is an optional array of extra Blobs — photos of specific items,
+// furniture, or materials the user supplied. They are appended after the room image, with
+// framing text telling the model which image is the room and how to treat the rest.
+export async function editImage(blob, prompt, model = MODELS.flash, references = []) {
+  const text = references.length
+    ? `${prompt}
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: [
-      { text: prompt },
-      { inlineData: { mimeType: blob.type || "image/jpeg", data: base64 } },
-    ],
-  });
+The first image is the current room. Each additional image is a reference photo of a specific item, piece of furniture, or material (e.g. tile, wallpaper, fabric, decor) supplied by the user. When the instruction refers to such an item or material, reproduce it faithfully in the room at a realistic scale; otherwise ignore the reference images. Always return the edited ROOM image, never a reference image.`
+    : prompt;
+
+  const contents = [
+    { text },
+    { inlineData: { mimeType: blob.type || "image/jpeg", data: await blobToBase64(blob) } },
+  ];
+  for (const ref of references) {
+    contents.push({ inlineData: { mimeType: ref.type || "image/jpeg", data: await blobToBase64(ref) } });
+  }
+
+  const response = await ai.models.generateContent({ model, contents });
 
   // Defensive parse (Risk R2): scan ALL candidates, and all parts within each, for the first
   // inline image; tolerate snake_case. Some responses split content across multiple candidates,

@@ -14,10 +14,16 @@ import { saveSession, clearSession } from "../db/idb.js";
 let nextId = 1;
 const newId = () => `e${nextId++}`;
 
-// Persist the current history slice (fire-and-forget; failures are logged, not fatal).
+// Persist the current session slice (fire-and-forget; failures are logged, not fatal).
+// Reference items (Pass 6) are part of the session so a refresh restores the tray too.
 function persist() {
-  const { history, historyIndex } = getState();
-  saveSession({ history, historyIndex }).catch((err) => console.warn("[history] persist failed:", err));
+  const { history, historyIndex, referenceImages } = getState();
+  saveSession({ history, historyIndex, referenceImages }).catch((err) => console.warn("[history] persist failed:", err));
+}
+
+// Exported for actions/references.js, which mutates a session slice of its own.
+export function persistSession() {
+  persist();
 }
 
 // Start a fresh history from an original photo (called when a new source photo is set).
@@ -77,6 +83,7 @@ export function applyRestoredSession(session) {
     history: session.history,
     historyIndex: idx,
     activeImage: session.history[idx].image,
+    referenceImages: session.referenceImages ?? [],
   });
   // Keep id generator ahead of any restored ids so new ids don't collide.
   for (const e of session.history) {
