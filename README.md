@@ -108,10 +108,20 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
 - **Persistence:** references are part of the saved session, so a reload restores the tray;
   "New photo" clears it.
 
-**All six passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
+### Pass 7 — Export Controls: Aspect Ratio + Upscale ✅
+- **Export dialog:** ↧ Download opens a native `<dialog>` with shape and size options. Defaults —
+  **Original / Standard** — download the exact current image instantly, no API call.
+- **Generative expand:** picking a new shape (1:1, 4:3, 16:9, 4:5, 9:16) extends the room's scene
+  outward to fill the new canvas via `imageConfig.aspectRatio` — nothing is cropped or stretched.
+- **Upscale:** 2K / 4K render via the Pro model's `imageSize`. "Original" upscales snap to the
+  nearest supported ratio (the model drifts the shape if the config is omitted — live-verified).
+- **Keep in history:** optional checkbox appends the render as an undoable, persisted edit;
+  Share from the dialog uses the Web Share API with download fallback.
+
+**All seven passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
 it via function calling → attach photos of specific items/materials to work into the design → review
-the persisted history (undo/redo/branch) → compare before/after → opt into Pro renders → installable,
-themed, and accessible.
+the persisted history (undo/redo/branch) → compare before/after → opt into Pro renders → export at any
+shape/size with generative expand → installable, themed, and accessible.
 
 ### Known manual-verification items
 Real camera capture, live mic/speaker audio, reduced-motion under OS emulation, and Lighthouse

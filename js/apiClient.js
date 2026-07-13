@@ -49,10 +49,58 @@ The first image is the current room. Each additional image is a reference photo 
   }
 
   const response = await ai.models.generateContent({ model, contents });
+  return firstImageFromResponse(response);
+}
 
-  // Defensive parse (Risk R2): scan ALL candidates, and all parts within each, for the first
-  // inline image; tolerate snake_case. Some responses split content across multiple candidates,
-  // so checking only candidates[0] can miss an image that did come back.
+// Aspect ratios the image models accept in imageConfig (live-verified 2026-07-13). Exports that
+// keep the "original" ratio still must send the nearest supported one: probed Pro at 4K with NO
+// aspectRatio and the model drifted the ratio (1.83 source → 2.36 output), so omitting the config
+// is not an option for faithful upscales.
+export const SUPPORTED_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
+
+// Nearest supported ratio for a width/height (compared in log space so 2:1 and 1:2 are equidistant from 1:1).
+export function nearestSupportedRatio(width, height) {
+  const target = Math.log(width / height);
+  let best = SUPPORTED_RATIOS[0];
+  let bestDist = Infinity;
+  for (const r of SUPPORTED_RATIOS) {
+    const [w, h] = r.split(":").map(Number);
+    const dist = Math.abs(Math.log(w / h) - target);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = r;
+    }
+  }
+  return best;
+}
+
+// Render the image for export (Pass 7): expand to a new aspect ratio (generative outpaint —
+// never crop/stretch) and/or upscale via the Pro model's imageSize. Both knobs ride on
+// imageConfig, which the pinned SDK passes through to generationConfig (live-verified).
+//  - aspectRatio: one of SUPPORTED_RATIOS (required — see note above).
+//  - imageSize: '2K' | '4K' | undefined (Standard). 2K/4K require the Pro model.
+//  - expand: true when the user picked a NEW shape (outpaint prompt); false for a pure upscale
+//    at the (nearest-)original ratio (fidelity prompt).
+export async function renderForExport(blob, { aspectRatio, imageSize, expand, model = MODELS.flash }) {
+  const prompt = expand
+    ? "Extend this interior scene outward to completely fill the new canvas. Keep everything already in the photo exactly as it is — same furniture, geometry, lighting, and style — and generate a seamless, realistic continuation of the room to fill the added space. Do not crop, stretch, or restyle the existing content."
+    : "Reproduce this exact image at the highest possible fidelity. Do not add, remove, restyle, or reframe anything; if the canvas shape differs slightly, extend the scene minimally at the edges to fit.";
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: [
+      { text: prompt },
+      { inlineData: { mimeType: blob.type || "image/jpeg", data: await blobToBase64(blob) } },
+    ],
+    config: { imageConfig: imageSize ? { aspectRatio, imageSize } : { aspectRatio } },
+  });
+  return firstImageFromResponse(response);
+}
+
+// Defensive parse (Risk R2): scan ALL candidates, and all parts within each, for the first
+// inline image; tolerate snake_case. Some responses split content across multiple candidates,
+// so checking only candidates[0] can miss an image that did come back.
+function firstImageFromResponse(response) {
   const candidates = response?.candidates ?? [];
   let firstText; // remember any text so we can surface the model's message if no image is found
   for (const candidate of candidates) {

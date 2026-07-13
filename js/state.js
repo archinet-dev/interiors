@@ -23,6 +23,7 @@ const INITIAL_STATE = {
   voiceTranscript: [], // input + output captions — [{ role, text, ts }] (Pass 2)
   editingInFlight: false, // true while an image edit is running
   editingModel: "flash", // 'flash' | 'pro' — model selection (Pass 4)
+  exportBusy: false, // true while an export render (expand/upscale) is running (Pass 7)
   referenceImages: [], // [{ id, image: Blob, ts }] — item/material photos to use in edits (Pass 6)
   comparing: false, // true while the before/after view is shown (Pass 4)
   error: null, // string | null — last user-visible error

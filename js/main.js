@@ -18,6 +18,7 @@ import "./components/edit-history.js";
 import "./components/before-after.js";
 import "./components/reference-tray.js";
 import "./settings.js";
+import "./export.js";
 import "./theme.js";
 import "./toast.js";
 import "./pwa.js";
@@ -28,7 +29,7 @@ import { setPhoto } from "./actions/setPhoto.js";
 import { stopVoiceSession } from "./actions/voiceSession.js";
 import { undo, redo, clearHistory, applyRestoredSession } from "./actions/history.js";
 import { clearReferences } from "./actions/references.js";
-import { downloadImage, shareImage } from "./actions/exportImage.js";
+import { shareImage } from "./actions/exportImage.js";
 import { loadSession } from "./db/idb.js";
 import { attachZoomPan } from "./zoomPan.js";
 
@@ -134,8 +135,8 @@ function render(state) {
   editButton.disabled = state.editingInFlight;
   editButton.textContent = state.editingInFlight ? "Editing…" : "Try a sample edit";
   retakeButton.disabled = state.editingInFlight;
-  downloadButton.disabled = state.editingInFlight;
-  shareButton.disabled = state.editingInFlight;
+  downloadButton.disabled = state.editingInFlight || state.exportBusy;
+  shareButton.disabled = state.editingInFlight || state.exportBusy;
 
   // Suggestion chips + direction cards are disabled while an edit is running.
   for (const chip of chipButtons) chip.disabled = state.editingInFlight;
@@ -190,8 +191,8 @@ editButton.addEventListener("click", () => runEdit(SAMPLE_PROMPT));
 undoButton.addEventListener("click", () => undo());
 redoButton.addEventListener("click", () => redo());
 
-// Download / Share the current design (wireframe §L).
-downloadButton.addEventListener("click", () => downloadImage());
+// Share the current design instantly (wireframe §L). Download opens the Export dialog with
+// shape/size options (Pass 7) — wired in js/export.js.
 shareButton.addEventListener("click", () => shareImage());
 
 // Compare toggle — animate the swap via a View Transition (reduced-motion falls back to instant).
