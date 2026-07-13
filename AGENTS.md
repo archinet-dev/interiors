@@ -27,7 +27,7 @@ other; they must not drift.**
 - Put the Gemini key in `.env` (git-ignored): `GEMINI_API_KEY=...` — Bun auto-loads it.
 - `bun run start` (or `bun --watch server/index.js` for auto-reload), then open http://localhost:5173/.
 - `server/index.js` is a zero-dependency `Bun.serve()` static server + transparent Gemini proxy: it injects the key into upstream REST calls **and** reverse-proxies the Live WebSocket (`/api/genai/ws/*`) so the browser never holds the key (H1).
-- `.replit` exists so the app can also run on Replit; keep it working if you touch server startup (it expects the server to honor `PORT` and bind externally).
+- `.replit` exists because the prototype is hosted on Replit at **https://outlouddesign.replit.app**; keep it working if you touch server startup (it expects the server to honor `PORT` and bind externally). Replit publishes commits directly to `main`, so pull before starting local work.
 - **No test runner exists.** Do not invent build/lint/test commands. Verification is browser-based: load the app and check acceptance criteria against observed behavior, watching DevTools for console/network errors and memory leaks. Camera/mic/clipboard need a secure context (localhost qualifies).
 
 ## Tech stack & non-negotiable constraints

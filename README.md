@@ -22,6 +22,12 @@ bun run start          # or: bun server/index.js   (bun --watch server/index.js 
 
 The camera/clipboard features in later passes require a secure context (localhost qualifies).
 
+## Prototype hosting
+
+The prototype is hosted on **Replit** (see `.replit`): **https://outlouddesign.replit.app**.
+Replit publishes directly to `main` ("Published your App" commits), so pull before starting
+local work. The key lives in Replit Secrets, never in the repo.
+
 ## Tech stack
 
 Vanilla JS (ES2024+ modules), HTML5, CSS only on the front end — no framework, no bundler. The
