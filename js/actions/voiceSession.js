@@ -12,7 +12,7 @@ import { getState, setState } from "../state.js";
 import { runEdit } from "./editImage.js";
 import { startMicCapture, PcmPlayer } from "../audio/audioIO.js";
 
-// Native-audio Live model (verified available — see VERIFICATION_REPORT.md), held as a constant.
+// Native-audio Live model (verified available — see docs/VERIFICATION_REPORT.md), held as a constant.
 const LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
 
 const SYSTEM_INSTRUCTION = `You are a friendly, concise interior-design assistant in a live voice conversation. You can SEE the user's room photo and any edited versions sent to you.

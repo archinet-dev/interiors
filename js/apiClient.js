@@ -11,7 +11,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Verified-available preview model IDs (see VERIFICATION_REPORT.md). Kept as constants so a
+// Verified-available preview model IDs (see docs/VERIFICATION_REPORT.md). Kept as constants so a
 // GA rename is a single edit in this file.
 export const MODELS = {
   flash: "gemini-3.1-flash-image-preview", // Nano Banana 2 — fast default edit
