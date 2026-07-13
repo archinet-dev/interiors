@@ -143,7 +143,7 @@ export async function exportImage({ ratio = "original", size = "standard", share
         const label = expand ? `Expanded to ${ratio}${imageSize ? ` · ${imageSize}` : ""}` : `Upscaled to ${imageSize}`;
         recordEdit(label, blob);
       } else {
-        setState({ error: "The room changed while rendering — the export was downloaded but not added to history." });
+        setState({ error: "The room changed while rendering — the export was delivered but not added to history." });
       }
     }
     return true;
