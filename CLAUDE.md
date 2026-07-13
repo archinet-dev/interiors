@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> `AGENTS.md` is the agent-neutral counterpart of this file for other coding agents — **if you change one, make the same change in the other; they must not drift.**
+
 ## What this repo is
 
 **Space Makeover Visualizer** — a responsive, device-aware web app that lets a user photograph a room and redesign it in real time by talking to a live voice agent that sees the photo, suggests changes, and edits the image on command.
