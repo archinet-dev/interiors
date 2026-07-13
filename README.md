@@ -5,7 +5,8 @@ real time by talking to a live voice agent that sees the photo, suggests changes
 the image on command.
 
 Built as a vertical-slice walking skeleton — the app is fully runnable after every pass. See
-`PROMPT.md` for the full spec and `VERIFICATION_REPORT.md` for the pre-code verification.
+`PROMPT.md` for the full spec; per-pass reports, the pre-code verification, design tokens,
+wireframes, and the architectural-decision log live under `docs/`.
 
 ## Running locally
 
@@ -119,4 +120,4 @@ Real camera capture, live mic/speaker audio, reduced-motion under OS emulation, 
 **Verified against the live Gemini API (2026-07-10):** reference-item edit fidelity (an attached
 armchair photo was reproduced faithfully in the room by "Add to room") and the voice tool-call
 bridge with attachments (a real Live session saw the reference, tool-called `editImage`, and
-narrated the applied edit). Details in `PASS_6.md` §5.
+narrated the applied edit). Details in `docs/passes/PASS_6.md` §5.
