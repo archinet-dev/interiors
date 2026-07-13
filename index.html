@@ -102,6 +102,43 @@
         </label>
       </div>
 
+      <!-- Export dialog (Pass 7) — native <dialog> handles modality, focus trap, and Esc.
+           Default Original/Standard downloads the exact current image (no API call). A new shape
+           extends the scene generatively (outpaint); 2K/4K upscale renders via the Pro model. -->
+      <dialog id="export-dialog" class="export-dialog" aria-labelledby="export-title">
+        <h2 id="export-title" class="settings-title">Export image</h2>
+
+        <fieldset class="export-group">
+          <legend>Shape</legend>
+          <div class="export-ratios">
+            <label class="ratio-opt"><input type="radio" name="export-ratio" value="original" checked /><span>Original</span></label>
+            <label class="ratio-opt"><input type="radio" name="export-ratio" value="1:1" /><span>1:1</span></label>
+            <label class="ratio-opt"><input type="radio" name="export-ratio" value="4:3" /><span>4:3</span></label>
+            <label class="ratio-opt"><input type="radio" name="export-ratio" value="16:9" /><span>16:9</span></label>
+            <label class="ratio-opt"><input type="radio" name="export-ratio" value="4:5" /><span>4:5</span></label>
+            <label class="ratio-opt"><input type="radio" name="export-ratio" value="9:16" /><span>9:16</span></label>
+          </div>
+          <p class="export-note" id="export-ratio-note">A new shape extends your room's scene outward with AI — nothing is cropped or stretched.</p>
+        </fieldset>
+
+        <fieldset class="export-group">
+          <legend>Size</legend>
+          <div class="export-ratios">
+            <label class="ratio-opt"><input type="radio" name="export-size" value="standard" checked /><span>Standard</span></label>
+            <label class="ratio-opt"><input type="radio" name="export-size" value="2K" /><span>2K</span></label>
+            <label class="ratio-opt"><input type="radio" name="export-size" value="4K" /><span>4K</span></label>
+          </div>
+          <p class="export-note">2K and 4K render with the Pro model — higher quality, slower. Original shape upscales at the nearest supported ratio.</p>
+        </fieldset>
+
+        <label class="export-keep"><input type="checkbox" id="export-keep" /><span>Keep the result in my edit history</span></label>
+
+        <div class="export-actions">
+          <button id="export-cancel" class="btn-secondary" type="button">Cancel</button>
+          <button id="export-share" class="btn-secondary" type="button">⤴ Share</button>
+          <button id="export-download" class="btn-primary" type="button">↧ Download</button>
+        </div>
+      </dialog>
     </main>
 
     <!-- Non-blocking error toast (Pass 5) — native Popover API. Message set via textContent (H3). -->

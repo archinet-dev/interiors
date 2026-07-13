@@ -278,6 +278,83 @@ body {
   border-top: 1px solid var(--line);
 }
 
+/* Export dialog (Pass 7) — native <dialog>; same surface language as the settings panel. */
+.export-dialog {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  width: min(92vw, 380px);
+  background: var(--frame);
+  color: var(--ink);
+  font-size: 13px;
+}
+.export-dialog::backdrop {
+  background: light-dark(rgb(44 44 41 / 0.35), rgb(0 0 0 / 0.55));
+}
+.export-group {
+  border: 0;
+  padding: 0;
+  margin: 0 0 14px;
+}
+.export-group legend {
+  font-weight: 700;
+  padding: 0 0 6px;
+}
+.export-ratios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* Radios styled as toggle chips; the input stays in the a11y tree (visually reduced, not display:none). */
+.ratio-opt {
+  position: relative;
+  cursor: pointer;
+}
+.ratio-opt input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.ratio-opt span {
+  display: inline-block;
+  padding: 7px 12px;
+  border: 1.5px solid var(--line2);
+  border-radius: var(--radius-btn);
+  background: var(--frame);
+  font-weight: 600;
+}
+.ratio-opt input:checked + span {
+  color: var(--accent);
+  background: var(--accent-fill);
+  border-color: var(--accent);
+}
+.ratio-opt input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ratio-opt input:disabled + span {
+  opacity: 0.5;
+}
+.export-note {
+  margin: 8px 0 0;
+  color: var(--soft);
+  font-size: 12px;
+}
+.export-keep {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 2px 0 14px;
+  cursor: pointer;
+}
+.export-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .btn-primary,
 .btn-secondary {
   font: 600 13px/1 var(--font-sans);

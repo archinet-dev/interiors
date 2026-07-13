@@ -1,9 +1,15 @@
-// actions/exportImage.js — save / share the current design (wireframe section L).
+// actions/exportImage.js — save / share the current design (wireframe section L; export options Pass 7).
 //
-// Download writes the current activeImage to a file. Share uses the Web Share API with the image
-// file where supported (mobile), falling back to a download otherwise.
+// Download writes an image to a file. Share uses the Web Share API with the image file where
+// supported (mobile), falling back to a download otherwise. exportImage() adds the Pass 7
+// controls: a target aspect ratio (default: original — the exact current Blob, no API call)
+// and an optional 2K/4K upscale. A non-original ratio EXPANDS the scene generatively
+// (outpaint — never crop/stretch); upscales render via the Pro model. The result can
+// optionally be kept in the edit history.
 
 import { getState, setState } from "../state.js";
+import { MODELS, SUPPORTED_RATIOS, nearestSupportedRatio, renderForExport } from "../apiClient.js";
+import { recordEdit } from "./history.js";
 
 function extFor(blob) {
   const t = blob?.type || "image/jpeg";
@@ -17,31 +23,21 @@ function fileName(blob) {
   return `space-makeover-${Date.now()}.${extFor(blob)}`;
 }
 
-// Download the current image as a file.
-export function downloadImage() {
-  const { activeImage } = getState();
-  if (!activeImage) {
-    setState({ error: "Nothing to download yet — add a photo first." });
-    return;
-  }
-  const url = URL.createObjectURL(activeImage);
+// Trigger a download of the given Blob.
+function deliverDownload(blob) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = fileName(activeImage);
+  a.download = fileName(blob);
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000); // revoke after the download has kicked off
 }
 
-// Share the current image via the Web Share API; fall back to download where unsupported.
-export async function shareImage() {
-  const { activeImage } = getState();
-  if (!activeImage) {
-    setState({ error: "Nothing to share yet — add a photo first." });
-    return;
-  }
-  const file = new File([activeImage], fileName(activeImage), { type: activeImage.type || "image/jpeg" });
+// Share the given Blob via the Web Share API; fall back to download where unsupported.
+async function deliverShare(blob) {
+  const file = new File([blob], fileName(blob), { type: blob.type || "image/jpeg" });
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: "My room redesign", text: "Made with Space Makeover Visualizer" });
@@ -51,5 +47,93 @@ export async function shareImage() {
       console.warn("[exportImage] share failed, falling back to download:", err);
     }
   }
-  downloadImage(); // platform can't share files → download instead
+  deliverDownload(blob); // platform can't share files → download instead
+}
+
+// Download the current image as-is (topbar shortcut path and Original/Standard export).
+export function downloadImage() {
+  const { activeImage } = getState();
+  if (!activeImage) {
+    setState({ error: "Nothing to download yet — add a photo first." });
+    return;
+  }
+  deliverDownload(activeImage);
+}
+
+// Share the current image as-is.
+export async function shareImage() {
+  const { activeImage } = getState();
+  if (!activeImage) {
+    setState({ error: "Nothing to share yet — add a photo first." });
+    return;
+  }
+  await deliverShare(activeImage);
+}
+
+// Decode a Blob's pixel dimensions (needed to snap "original" to a supported render ratio).
+async function imageDims(blob) {
+  const bmp = await createImageBitmap(blob);
+  const d = { width: bmp.width, height: bmp.height };
+  bmp.close();
+  return d;
+}
+
+// Export with options (Pass 7). Returns true when the export completed (dialog can close).
+//  - ratio: 'original' | one of SUPPORTED_RATIOS shown in the dialog
+//  - size:  'standard' | '2K' | '4K'   (2K/4K render via the Pro model)
+//  - share: deliver via the share sheet instead of a download
+//  - keepInHistory: also append the rendered result as an undoable edit
+export async function exportImage({ ratio = "original", size = "standard", share = false, keepInHistory = false } = {}) {
+  const { activeImage, editingModel, exportBusy, editingInFlight } = getState();
+  if (!activeImage) {
+    setState({ error: "Nothing to export yet — add a photo first." });
+    return false;
+  }
+  if (exportBusy || editingInFlight) return false; // one render at a time
+
+  // Original shape + standard size = the exact current image; no API call, no history change.
+  const expand = ratio !== "original";
+  if (!expand && size === "standard") {
+    if (share) await deliverShare(activeImage);
+    else deliverDownload(activeImage);
+    return true;
+  }
+
+  setState({ exportBusy: true });
+  try {
+    // "Original" upscales still need an explicit supported ratio — the model drifts the
+    // shape when imageConfig.aspectRatio is omitted (live-verified; see apiClient.js).
+    let aspectRatio = ratio;
+    if (!expand) {
+      const { width, height } = await imageDims(activeImage);
+      aspectRatio = nearestSupportedRatio(width, height);
+    } else if (!SUPPORTED_RATIOS.includes(aspectRatio)) {
+      throw new Error(`Unsupported aspect ratio: ${aspectRatio}`);
+    }
+
+    const imageSize = size === "standard" ? undefined : size;
+    const model = imageSize ? MODELS.pro : MODELS[editingModel] ?? MODELS.flash;
+    const blob = await renderForExport(activeImage, { aspectRatio, imageSize, expand, model });
+
+    // R2 check: confirm the render actually landed near the requested shape; warn, don't block.
+    const { width, height } = await imageDims(blob);
+    const [rw, rh] = aspectRatio.split(":").map(Number);
+    if (Math.abs(Math.log((width / height) / (rw / rh))) > Math.log(1.05)) {
+      setState({ error: `Heads up: the render came back ${width}×${height}, not quite ${aspectRatio}.` });
+    }
+
+    if (keepInHistory) {
+      const label = expand ? `Expanded to ${aspectRatio}${imageSize ? ` · ${imageSize}` : ""}` : `Upscaled to ${imageSize}`;
+      recordEdit(label, blob);
+    }
+    if (share) await deliverShare(blob);
+    else deliverDownload(blob);
+    return true;
+  } catch (err) {
+    console.error("[exportImage] export render failed:", err);
+    setState({ error: `Export failed: ${err?.message ?? err}` });
+    return false;
+  } finally {
+    setState({ exportBusy: false });
+  }
 }
