@@ -103,11 +103,20 @@ See the manifest above — 2 files added (`js/actions/references.js`,
   boundary) to read as "another place you can drop a photo".
 
 ### 5. Risks carried forward / manual checks
-- **Edit fidelity with real models** — how faithfully Nano Banana reproduces an attached item —
-  needs a hands-on pass with a real key (this sandbox cannot reach the API); the payload shape
-  it receives is verified.
-- **Live voice with attachments** (agent narration referring to the item) — manual mic pass,
-  same standing item as Pass 2.
+- ~~**Edit fidelity with real models**~~ — **verified 2026-07-10 against the live API** (local,
+  key in `.env`, Playwright-driven): a generated photo of a distinctive red mid-century armchair
+  was attached and "Add to room" reproduced that exact chair — color, style, wooden legs — in the
+  room's empty corner at realistic scale with matching lighting; geometry preserved, history
+  appended, no console errors.
+- ~~**Live voice with attachments**~~ — **verified 2026-07-10 against the live API**: a real
+  Live session (WS through the Bun proxy) confirmed "I see the room and the reference photo",
+  tool-called `editImage("move the red armchair from the reference photo next to the sofa by
+  the window")`, ran the real edit, received the updated image, and narrated the result. Only
+  the physical microphone was shimmed (silent synthetic stream; request injected as a text turn
+  via the `sendUserText` test hook) — spoken audio in/out remains the standing Pass 2 mic check.
+  Fidelity nuance observed: on a "move" instruction the model *added* the chair at the new spot
+  rather than relocating the original ("add" is more reliable than "move"); app behavior was
+  correct and undo/a follow-up edit resolves it.
 - Budgets: no new long tasks on the main thread (reads are async FileReader; thumbnails are
   object URLs); heap discipline covered by the per-id revoke pattern.
 

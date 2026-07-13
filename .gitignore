@@ -1,0 +1,11 @@
+# Secrets — the Gemini API key lives here and must never be committed (constraint H1).
+.env
+.env.*
+
+# OS noise
+.DS_Store
+
+# Editor/tooling state
+.omc/
+.playwright-mcp/
+node_modules/

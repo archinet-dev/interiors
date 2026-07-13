@@ -115,3 +115,8 @@ themed, and accessible.
 ### Known manual-verification items
 Real camera capture, live mic/speaker audio, reduced-motion under OS emulation, and Lighthouse
 (a11y ≥95 / 4G first paint) are code-verified here and flagged for a hands-on device/Lighthouse pass.
+
+**Verified against the live Gemini API (2026-07-10):** reference-item edit fidelity (an attached
+armchair photo was reproduced faithfully in the room by "Add to room") and the voice tool-call
+bridge with attachments (a real Live session saw the reference, tool-called `editImage`, and
+narrated the applied edit). Details in `PASS_6.md` §5.
