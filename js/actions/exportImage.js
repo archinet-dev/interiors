@@ -50,17 +50,7 @@ async function deliverShare(blob) {
   deliverDownload(blob); // platform can't share files → download instead
 }
 
-// Download the current image as-is (topbar shortcut path and Original/Standard export).
-export function downloadImage() {
-  const { activeImage } = getState();
-  if (!activeImage) {
-    setState({ error: "Nothing to download yet — add a photo first." });
-    return;
-  }
-  deliverDownload(activeImage);
-}
-
-// Share the current image as-is.
+// Share the current image as-is (topbar Share; Download goes through the export dialog).
 export async function shareImage() {
   const { activeImage } = getState();
   if (!activeImage) {
@@ -84,7 +74,7 @@ async function imageDims(blob) {
 //  - share: deliver via the share sheet instead of a download
 //  - keepInHistory: also append the rendered result as an undoable edit
 export async function exportImage({ ratio = "original", size = "standard", share = false, keepInHistory = false } = {}) {
-  const { activeImage, editingModel, exportBusy, editingInFlight } = getState();
+  const { activeImage, sourceImage, editingModel, exportBusy, editingInFlight } = getState();
   if (!activeImage) {
     setState({ error: "Nothing to export yet — add a photo first." });
     return false;
@@ -123,8 +113,17 @@ export async function exportImage({ ratio = "original", size = "standard", share
     }
 
     if (keepInHistory) {
-      const label = expand ? `Expanded to ${aspectRatio}${imageSize ? ` · ${imageSize}` : ""}` : `Upscaled to ${imageSize}`;
-      recordEdit(label, blob);
+      // The render is long and the rest of the UI stays live (undo/jump/retake are not gated on
+      // exportBusy). Only append to history if the session is still the one we rendered from —
+      // same active image (blob identity) and same source photo. Otherwise the file is still
+      // delivered below, just not recorded into a history it no longer belongs to.
+      const now = getState();
+      if (now.activeImage === activeImage && now.sourceImage === sourceImage) {
+        const label = expand ? `Expanded to ${aspectRatio}${imageSize ? ` · ${imageSize}` : ""}` : `Upscaled to ${imageSize}`;
+        recordEdit(label, blob);
+      } else {
+        setState({ error: "The room changed while rendering — the export was downloaded but not added to history." });
+      }
     }
     if (share) await deliverShare(blob);
     else deliverDownload(blob);
