@@ -95,8 +95,12 @@ surface.addEventListener("pointerup", (e) => {
   const y = ((e.clientY - r.top) / r.height) * 1000;
   if (x < 0 || x > 1000 || y < 0 || y > 1000) return;
   // Defer past the double-click window so the zoom gesture doesn't fire a selection lookup.
+  // The callback rechecks the world it fires into: an edit may have started or the image may
+  // have been swapped (undo/redo/filmstrip) during the wait — both invalidate the tap.
+  const tapImageSrc = img.src;
   pendingTap = setTimeout(() => {
     pendingTap = 0;
+    if (getState().editingInFlight || img.src !== tapImageSrc) return;
     selectAtPoint(y, x);
   }, 280);
 });
@@ -107,8 +111,10 @@ surface.addEventListener("dblclick", () => {
   clearSelection({ announce: true });
 });
 
-// A new photo or an edit swap invalidates the old outline's coordinates. (Programmatic clear —
-// runEdit already cleared targeted edits; this catches undo/redo/filmstrip swaps.)
+// A new photo or an edit swap invalidates the old outline's coordinates AND any deferred tap.
+// (Programmatic clear — runEdit already cleared targeted edits; this catches undo/redo/filmstrip
+// swaps. History navigation also clears eagerly in actions/history.js — this is the backstop.)
 img.addEventListener("load", () => {
+  if (pendingTap) { clearTimeout(pendingTap); pendingTap = 0; }
   if (getState().selection) clearSelection();
 });

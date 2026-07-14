@@ -251,6 +251,16 @@ async function onLiveMessage(msg) {
   if (msg.serverContent?.turnComplete && getState().voiceActive) setState({ voiceStatus: "listening" });
 }
 
+// Wait for an in-flight tap lookup ('locating') to settle so the agent's target wording never
+// cancels a selection the user is actively making. Bounded — a hung lookup can't stall edits.
+async function settleSelection(maxMs = 6000) {
+  const t0 = Date.now();
+  while (getState().selection?.status === "locating" && Date.now() - t0 < maxMs) {
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return getState().selection;
+}
+
 // Drain the tool-call queue one editImage at a time. The handlingTool flag makes this a singleton
 // loop: concurrent onmessage callbacks just append to the queue and let the running drain pick them
 // up. Every call — including ones queued mid-edit — gets a sendToolResponse so no id is dropped.
@@ -271,11 +281,23 @@ async function drainToolCalls() {
       const prompt = fc.args?.prompt || "";
       const targetWords = fc.args?.target;
       appendTranscript("tool", targetWords ? `editImage("${prompt}", target: "${targetWords}")` : `editImage("${prompt}")`);
-      // Pass 8: if the agent named a target and the user hasn't already tap-selected something,
-      // locate it first — the outline appears for the user and runEdit scopes itself to it.
-      // A user's explicit tap selection always wins over the agent's wording.
-      if (targetWords && getState().selection?.status !== "active") {
-        await selectByQuery(targetWords); // on failure runEdit simply runs unscoped
+      // Pass 8: a user's explicit tap selection always wins over the agent's wording — including
+      // one still resolving: wait for an in-flight tap lookup to settle rather than cancel it.
+      let selection = await settleSelection();
+      if (targetWords && selection?.status !== "active") {
+        selection = await selectByQuery(targetWords);
+        // The agent promised a single-object change. If we can't find that object, DON'T fall
+        // back to silently repainting the whole room — report the miss so the agent can react.
+        if (!selection) {
+          session?.sendToolResponse({
+            functionResponses: [{
+              id: fc.id,
+              name: fc.name,
+              response: { result: "error", error: `could not locate "${targetWords}" in the photo — nothing was changed. Ask the user to tap the object, or retry without a target for a whole-room edit.` },
+            }],
+          });
+          continue;
+        }
       }
       const ok = await runEdit(prompt);
       session?.sendToolResponse({

@@ -49,6 +49,9 @@ async function runLocate(what) {
   try {
     const found = await locateObject(activeImage, what);
     if (myGen !== generation) return null; // superseded by a newer tap or a clear
+    // The coordinates belong to the EXACT image we asked about — if history navigation or an
+    // edit swapped activeImage while the model was thinking, the result is for the wrong bitmap.
+    if (getState().activeImage !== activeImage) return null;
     if (!found) {
       setState({ selection: null, error: "Couldn't identify anything there — try tapping the object itself." });
       return null;

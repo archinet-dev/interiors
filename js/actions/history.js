@@ -10,6 +10,7 @@
 
 import { getState, setState } from "../state.js";
 import { saveSession, clearSession } from "../db/idb.js";
+import { clearSelection } from "./select.js";
 
 let nextId = 1;
 const newId = () => `e${nextId++}`;
@@ -47,6 +48,7 @@ export function undo() {
   const { history, historyIndex } = getState();
   if (historyIndex <= 0) return;
   const i = historyIndex - 1;
+  clearSelection(); // outline coordinates belong to the image being navigated away from (Pass 8)
   setState({ historyIndex: i, activeImage: history[i].image });
   persist();
 }
@@ -55,6 +57,7 @@ export function redo() {
   const { history, historyIndex } = getState();
   if (historyIndex >= history.length - 1) return;
   const i = historyIndex + 1;
+  clearSelection();
   setState({ historyIndex: i, activeImage: history[i].image });
   persist();
 }
@@ -63,6 +66,7 @@ export function redo() {
 export function jumpTo(index) {
   const { history } = getState();
   if (index < 0 || index >= history.length) return;
+  clearSelection();
   setState({ historyIndex: index, activeImage: history[index].image });
   persist();
 }
