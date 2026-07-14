@@ -284,6 +284,18 @@ async function drainToolCalls() {
       // Pass 8: a user's explicit tap selection always wins over the agent's wording — including
       // one still resolving: wait for an in-flight tap lookup to settle rather than cancel it.
       let selection = await settleSelection();
+      if (selection?.status === "locating") {
+        // Still resolving after the bounded wait (hung lookup). Never stomp the user's tap —
+        // report busy instead of falling through to a query/unscoped edit.
+        session?.sendToolResponse({
+          functionResponses: [{
+            id: fc.id,
+            name: fc.name,
+            response: { result: "error", error: "the user is still selecting an object — nothing was changed; retry in a moment" },
+          }],
+        });
+        continue;
+      }
       if (targetWords && selection?.status !== "active") {
         selection = await selectByQuery(targetWords);
         // The agent promised a single-object change. If we can't find that object, DON'T fall
