@@ -205,7 +205,7 @@ async function sendReferenceTo(target, ref) {
 
 const SCAN_MAX_MS = 45_000; // burst cap (audio+video Live sessions are limited to ~2 min total)
 const SCAN_FRAME_MS = 1_000; // Live API accepts at most 1 video frame per second
-let scan = null; // { stream, video, canvas, timer, target }
+let scan = null; // { stream, video, canvas, timer, target } — set the moment setup BEGINS
 let scanFramesSent = 0; // exposed via getScanFrameCount() for verification
 
 export function getScanFrameCount() {
@@ -217,45 +217,59 @@ export async function startRoomScan() {
     setState({ error: "Start the voice assistant first, then show it the room." });
     return false;
   }
-  if (scan) return true; // already scanning
+  if (scan) return true; // already scanning OR mid-setup — a second tap can't open a second camera
   const target = session; // bind the burst to the session open NOW
+
+  // Claim the singleton BEFORE any await: concurrent taps during the permission prompt or
+  // video.play() would otherwise each open a stream and orphan all but the last.
+  const mine = { stream: null, video: null, canvas: null, timer: 0, target };
+  scan = mine;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    mine.stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "environment", width: { ideal: 1280 } },
     });
-    // The permission dialog may have outlived the session — don't start a burst into nothing.
-    if (session !== target) {
-      for (const t of stream.getTracks()) t.stop();
+    // Stopped (stopRoomScan nulled `scan`) or session died while the prompt was up → clean up.
+    if (scan !== mine || session !== target) {
+      for (const t of mine.stream.getTracks()) t.stop();
+      if (scan === mine) { scan = null; setState({ scanActive: false }); }
       return false;
     }
-    const video = document.createElement("video");
-    video.muted = true;
-    video.playsInline = true;
-    video.srcObject = stream;
-    await video.play();
+    mine.video = document.createElement("video");
+    mine.video.muted = true;
+    mine.video.playsInline = true;
+    mine.video.srcObject = mine.stream;
+    await mine.video.play();
+    // Re-check after EVERY await — play() can outlive the session too.
+    if (scan !== mine || session !== target) {
+      for (const t of mine.stream.getTracks()) t.stop();
+      if (scan === mine) { scan = null; setState({ scanActive: false }); }
+      return false;
+    }
 
     target.sendClientContent({
       turns: [{ role: "user", parts: [{ text: "(The user is showing you around the room with their live camera. Frames arrive about once per second — track what you see so you can discuss the room, and briefly acknowledge that you can see it.)" }] }],
       turnComplete: true,
     });
 
-    const canvas = document.createElement("canvas");
+    mine.canvas = document.createElement("canvas");
     const deadline = Date.now() + SCAN_MAX_MS;
     scanFramesSent = 0;
-    const timer = setInterval(async () => {
+    mine.timer = setInterval(async () => {
+      if (scan !== mine) return; // stopped — a stale tick must not touch anything
       if (!session || session !== target) return stopRoomScan("session");
       if (Date.now() > deadline) return stopRoomScan("time");
-      const w = video.videoWidth;
-      const h = video.videoHeight;
+      const w = mine.video.videoWidth;
+      const h = mine.video.videoHeight;
       if (!w || !h) return; // camera warming up
       const scale = Math.min(1, 768 / Math.max(w, h)); // frames are context, not art — keep them light
-      canvas.width = Math.round(w * scale);
-      canvas.height = Math.round(h * scale);
-      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.7));
-      if (!blob || session !== target) return;
+      mine.canvas.width = Math.round(w * scale);
+      mine.canvas.height = Math.round(h * scale);
+      mine.canvas.getContext("2d").drawImage(mine.video, 0, 0, mine.canvas.width, mine.canvas.height);
+      const blob = await new Promise((resolve) => mine.canvas.toBlob(resolve, "image/jpeg", 0.7));
+      // Encoding is async — the scan may have been stopped mid-tick; never send after stop.
+      if (!blob || scan !== mine || session !== target) return;
       const data = await blobToBase64(blob);
-      if (session !== target) return; // stopped while encoding
+      if (scan !== mine || session !== target) return;
       // The dedicated `video` realtime field — the SDK's `media` maps to legacy mediaChunks,
       // which the native-audio model ignores (verified empirically: frames sent that way were
       // invisible to the agent; via `video` it describes them).
@@ -263,10 +277,14 @@ export async function startRoomScan() {
       scanFramesSent++;
     }, SCAN_FRAME_MS);
 
-    scan = { stream, video, canvas, timer, target };
     setState({ scanActive: true, error: null });
     return true;
   } catch (err) {
+    // Whatever was acquired before the failure gets released — no orphaned camera light.
+    if (mine.timer) clearInterval(mine.timer);
+    if (mine.stream) for (const t of mine.stream.getTracks()) t.stop();
+    if (scan === mine) scan = null;
+    setState({ scanActive: false });
     const expected = ["NotAllowedError", "SecurityError", "NotFoundError"].includes(err?.name);
     (expected ? console.warn : console.error)("[voice] scan could not start:", err?.name || err);
     setState({ error: friendlyCameraError(err) });
@@ -277,8 +295,8 @@ export async function startRoomScan() {
 // reason: 'user' (tapped stop) | 'time' (burst cap) | 'session' (voice session ended)
 export function stopRoomScan(reason = "user") {
   if (!scan) return;
-  clearInterval(scan.timer);
-  for (const t of scan.stream.getTracks()) t.stop();
+  if (scan.timer) clearInterval(scan.timer);
+  if (scan.stream) for (const t of scan.stream.getTracks()) t.stop();
   const { target } = scan;
   scan = null;
   setState({ scanActive: false });
