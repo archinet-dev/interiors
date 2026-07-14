@@ -10,6 +10,7 @@ import { Modality, Type } from "@google/genai";
 import { ai } from "../apiClient.js"; // shared SDK instance — apiClient is the one chokepoint (H1)
 import { getState, setState } from "../state.js";
 import { runEdit } from "./editImage.js";
+import { selectByQuery } from "./select.js";
 import { startMicCapture, PcmPlayer } from "../audio/audioIO.js";
 
 // Native-audio Live model (verified available — see docs/VERIFICATION_REPORT.md), held as a constant.
@@ -20,6 +21,8 @@ const SYSTEM_INSTRUCTION = `You are a friendly, concise interior-design assistan
 When the user asks for a change to the room, call the editImage tool with a CONCRETE, specific prompt that names the subject and the change — e.g. "replace the grey sofa with a tan leather sofa", "paint the walls sage green", "add a large potted fiddle-leaf fig in the empty corner". Preserve the room's geometry, perspective, and lighting. Do not call the tool for general chit-chat or questions.
 
 The user may also attach reference photos of specific items — furniture, decor, tiles, wallpaper, or other materials — that they want in the room. You will be shown each one. Attached reference photos are automatically included with every editImage call, so when the user asks to use one, call editImage with a prompt that explicitly refers to it and says where to put or apply it — e.g. "add the armchair from the reference photo next to the window", "retile the floor with the tile shown in the reference photo".
+
+The user can also TAP an object in the photo to select it; you will be told when they do. While something is selected, edit requests apply to that object only. Independently, when the user's request clearly targets ONE object or surface ("make the sofa green", "just this wall"), pass the tool's optional "target" argument with a short name for it — the app will locate it precisely, outline it for the user, and scope the edit to it. Leave "target" out for whole-room changes.
 
 After an edit completes you will receive the updated photo; describe what changed in ONE short spoken sentence. Keep all spoken replies brief and natural.`;
 
@@ -32,6 +35,11 @@ const editImageTool = {
       prompt: {
         type: Type.STRING,
         description: "A concrete edit naming the subject and the change, grounded in the photo.",
+      },
+      target: {
+        type: Type.STRING,
+        description:
+          "Optional. When the change is meant for ONE specific object or surface, its short name (e.g. 'the grey sofa', 'the right wall'). Omit for whole-room edits.",
       },
     },
     required: ["prompt"],
@@ -185,6 +193,24 @@ async function sendReferenceTo(target, ref) {
   }
 }
 
+// Tell the agent about tap-selection changes (Pass 8). No-ops when no session is open.
+export function announceSelection(label) {
+  const target = session;
+  if (!target) return;
+  target.sendClientContent({
+    turns: [{ role: "user", parts: [{ text: `(The user tapped the photo and selected: ${label}. Treat edit requests as targeting it unless they clearly say otherwise.)` }] }],
+    turnComplete: false, // context only — don't force the agent to respond
+  });
+}
+export function announceSelectionCleared() {
+  const target = session;
+  if (!target) return;
+  target.sendClientContent({
+    turns: [{ role: "user", parts: [{ text: "(The user cleared the photo selection — edits apply to the whole room again.)" }] }],
+    turnComplete: false,
+  });
+}
+
 // Send a text turn (used as a fallback and for automated testing of the tool-call bridge).
 export function sendUserText(text) {
   if (!session) return;
@@ -243,7 +269,14 @@ async function drainToolCalls() {
         continue;
       }
       const prompt = fc.args?.prompt || "";
-      appendTranscript("tool", `editImage("${prompt}")`);
+      const targetWords = fc.args?.target;
+      appendTranscript("tool", targetWords ? `editImage("${prompt}", target: "${targetWords}")` : `editImage("${prompt}")`);
+      // Pass 8: if the agent named a target and the user hasn't already tap-selected something,
+      // locate it first — the outline appears for the user and runEdit scopes itself to it.
+      // A user's explicit tap selection always wins over the agent's wording.
+      if (targetWords && getState().selection?.status !== "active") {
+        await selectByQuery(targetWords); // on failure runEdit simply runs unscoped
+      }
       const ok = await runEdit(prompt);
       session?.sendToolResponse({
         functionResponses: [

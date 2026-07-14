@@ -19,6 +19,7 @@ import "./components/before-after.js";
 import "./components/reference-tray.js";
 import "./settings.js";
 import "./export.js";
+import "./selectionOverlay.js";
 import "./theme.js";
 import "./toast.js";
 import "./pwa.js";
@@ -29,6 +30,7 @@ import { setPhoto } from "./actions/setPhoto.js";
 import { stopVoiceSession } from "./actions/voiceSession.js";
 import { undo, redo, clearHistory, applyRestoredSession } from "./actions/history.js";
 import { clearReferences } from "./actions/references.js";
+import { clearSelection } from "./actions/select.js";
 import { shareImage } from "./actions/exportImage.js";
 import { loadSession } from "./db/idb.js";
 import { attachZoomPan } from "./zoomPan.js";
@@ -71,6 +73,9 @@ const editButton = document.getElementById("edit-button");
 const undoButton = document.getElementById("undo-button");
 const redoButton = document.getElementById("redo-button");
 const retakeButton = document.getElementById("retake-button");
+const selectionBar = document.getElementById("selection-bar");
+const selectionText = document.getElementById("selection-text");
+const selectionClear = document.getElementById("selection-clear");
 
 // Build the suggestion chips once; each runs a concrete edit (disabled while one is in flight).
 const chipButtons = SUGGESTIONS.map(({ label, prompt }) => {
@@ -100,8 +105,9 @@ const directionCards = DIRECTIONS.map(({ title, desc, prompt }) => {
   return btn;
 });
 
-// Pinch-zoom + pan on the active image (mobile gesture; double-click/drag on desktop).
-attachZoomPan(imageView, img);
+// Pinch-zoom + pan on the active image (mobile gesture; double-click/drag on desktop). The
+// transform rides on the wrapper so the tap-to-select overlay (Pass 8) stays aligned.
+attachZoomPan(imageView, document.querySelector(".canvas-wrap"), img);
 
 // --- Blob-URL lifecycle tracking (every createObjectURL needs a matching revoke) ---
 let renderedBlob = null; // the Blob currently shown (compare by identity, NOT URL string)
@@ -125,6 +131,16 @@ function render(state) {
   references.hidden = !hasPhoto;
   historyStrip.hidden = !hasPhoto;
   actions.hidden = !hasPhoto;
+
+  // Tap-to-select bar (Pass 8): hint → locating → selected chip.
+  selectionBar.hidden = !hasPhoto || comparing;
+  const sel = state.selection;
+  selectionBar.classList.toggle("active", sel?.status === "active");
+  selectionText.textContent =
+    sel?.status === "active" ? `Selected: ${sel.label} — your next edit changes only this`
+    : sel?.status === "locating" ? "Identifying…"
+    : "Tap any object in the photo to edit just that";
+  selectionClear.hidden = !sel;
 
   // Compare toggle + Pro hint.
   compareButton.setAttribute("aria-pressed", String(state.comparing));
@@ -195,6 +211,9 @@ redoButton.addEventListener("click", () => redo());
 // shape/size options (Pass 7) — wired in js/export.js.
 shareButton.addEventListener("click", () => shareImage());
 
+// Clear the tap selection (✕ button; Esc handled in the keydown listener below).
+selectionClear.addEventListener("click", () => clearSelection({ announce: true }));
+
 // Compare toggle — animate the swap via a View Transition (reduced-motion falls back to instant).
 compareButton.addEventListener("click", () => {
   const toggle = () => setState({ comparing: !getState().comparing });
@@ -207,6 +226,7 @@ retakeButton.addEventListener("click", () => {
   stopVoiceSession();
   clearHistory();
   clearReferences(); // a new room means new items
+  clearSelection(); // and no lingering outline
   setState({ sourceImage: null, activeImage: null, error: null, comparing: false });
 });
 
@@ -217,6 +237,13 @@ addEventListener("keydown", (e) => {
   const target = e.composedPath?.()[0] ?? e.target;
   const tag = target?.tagName;
   if (target?.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+  // Esc clears the tap selection (Pass 8) — but never while a modal dialog is open (the platform
+  // uses Esc to close it).
+  if (e.key === "Escape" && getState().selection && !document.querySelector("dialog[open]")) {
+    clearSelection({ announce: true });
+    return;
+  }
 
   const meta = e.metaKey || e.ctrlKey;
   if (!meta || e.key.toLowerCase() !== "z") return;

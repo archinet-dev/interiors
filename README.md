@@ -124,10 +124,25 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
 - **Keep in history:** optional checkbox appends the render as an undoable, persisted edit;
   Share from the dialog uses the Web Share API with download fallback.
 
-**All seven passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
-it via function calling → attach photos of specific items/materials to work into the design → review
-the persisted history (undo/redo/branch) → compare before/after → opt into Pro renders → export at any
-shape/size with generative expand → installable, themed, and accessible.
+### Pass 8 — Touch the Room: Tap-to-Select ✅
+- **Tap anything:** tapping the photo asks `gemini-3.5-flash` what's there (point → label + box +
+  best-effort polygon) and draws a marching-ants outline over it; the bar shows
+  "Selected: {label} — your next edit changes only this".
+- **Targeted edits:** while something is selected, every edit path (button, chip, voice) scopes
+  itself to that object — verified surgically (an emerald-velvet sofa recolor left the rest of
+  the room pixel-faithful). History entries carry the object label.
+- **Voice targeting:** the Live agent's `editImage` tool gained an optional `target` — "make just
+  the coffee table walnut" locates, outlines, and edits only the table; tap selections are
+  announced to the agent and always win.
+- **Model migration:** image models moved to the stable GA IDs (`gemini-3.1-flash-image`,
+  `gemini-3-pro-image`), live-verified; masks route to `gemini-3.5-flash` (Gemini 3 image models
+  don't support them).
+
+**All eight passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
+it via function calling → tap any object (or name it) to edit exactly that → attach photos of specific
+items/materials to work into the design → review the persisted history (undo/redo/branch) → compare
+before/after → opt into Pro renders → export at any shape/size with generative expand → installable,
+themed, and accessible.
 
 ### Known manual-verification items
 Real camera capture, live mic/speaker audio, reduced-motion under OS emulation, and Lighthouse

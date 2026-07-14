@@ -25,6 +25,9 @@
   /* Accent (primary action) — brighter in dark for contrast */
   --accent: light-dark(oklch(0.55 0.12 250), oklch(0.72 0.12 250));
   --accent-fill: light-dark(oklch(0.955 0.022 250), oklch(0.34 0.05 250));
+  /* Tap-to-select (Pass 8): selection is a verb — it never shares a hue with the agent (blue). */
+  --select: light-dark(oklch(0.55 0.13 165), oklch(0.78 0.13 165));
+  --select-fill: light-dark(oklch(0.55 0.13 165 / 0.14), oklch(0.78 0.13 165 / 0.18));
 
   /* State */
   --bad: light-dark(oklch(0.55 0.17 25), oklch(0.7 0.17 25)); /* error */
@@ -129,6 +132,13 @@ body {
   aspect-ratio: 1408 / 768; /* match the sample photo to avoid layout shift */
 }
 
+/* Wrapper carries the zoom/pan transform so image + selection overlay move as one (Pass 8). */
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 #room-image {
   display: block;
   width: 100%;
@@ -136,6 +146,50 @@ body {
   object-fit: cover;
   /* Distinct name so the active image animates as its own element under View Transitions. */
   view-transition-name: room-image;
+}
+
+/* Tap-to-select outline (Pass 8). Sized/positioned by selectionOverlay.js to the visible
+   picture (object-fit: cover crops the element box). */
+#selection-overlay {
+  position: absolute;
+  pointer-events: none;
+}
+#selection-overlay.locating { cursor: progress; }
+.selection-shape {
+  fill: var(--select-fill);
+  stroke: var(--select);
+  stroke-width: 3;
+  /* Non-scaling keeps the outline crisp at any zoom and any viewBox stretch. */
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-dasharray: 8 5;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .selection-shape { animation: select-ants 1.2s linear infinite; }
+  @keyframes select-ants { to { stroke-dashoffset: -26; } }
+}
+
+/* Selection status bar (Pass 8): hint → identifying → selected chip. */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--soft);
+  margin-top: 8px;
+  min-height: 24px;
+}
+.selection-bar.active { color: var(--select); font-weight: 600; }
+.selection-clear {
+  font: 600 11px/1 var(--font-sans);
+  color: var(--select);
+  background: var(--select-fill);
+  border: 1px solid var(--select);
+  border-radius: 999px;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
 }
 
 /* Action row under the photo. */

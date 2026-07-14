@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Space Makeover Visualizer** — a responsive, device-aware web app that lets a user photograph a room and redesign it in real time by talking to a live voice agent that sees the photo, suggests changes, and edits the image on command.
 
-**Current state: feature-complete through Pass 7** (walking skeleton → camera/upload → voice tool call → history/undo → before-after + Pro renders → polish/PWA → reference items → export controls). The capability ledger in `README.md` is the authoritative list of what works today. New work should be a new vertical-slice pass (or a fix) that keeps the app fully runnable.
+**Current state: feature-complete through Pass 8** (walking skeleton → camera/upload → voice tool call → history/undo → before-after + Pro renders → polish/PWA → reference items → export controls → tap-to-select targeted edits). The capability ledger in `README.md` is the authoritative list of what works today. New work should be a new vertical-slice pass (or a fix) that keeps the app fully runnable.
 
 ### Authoritative files
 - **`PROMPT.md`** — the complete product spec and the source of truth. It defines hard constraints, the required state/render contract, the architecture, the vertical-slice methodology, acceptance criteria, risk register, and budgets. When the spec and an inferred requirement conflict, the spec wins — stop and ask (constraint H5).
