@@ -51,7 +51,7 @@ export function undo() {
   if (historyIndex <= 0) return;
   const i = historyIndex - 1;
   clearSelection(); // outline coordinates belong to the image being navigated away from (Pass 8)
-  setState({ historyIndex: i, activeImage: history[i].image });
+  setState({ historyIndex: i, activeImage: history[i].image, draftPreview: null }); // stale draft too (Pass 9)
   persist();
 }
 
@@ -60,7 +60,7 @@ export function redo() {
   if (historyIndex >= history.length - 1) return;
   const i = historyIndex + 1;
   clearSelection();
-  setState({ historyIndex: i, activeImage: history[i].image });
+  setState({ historyIndex: i, activeImage: history[i].image, draftPreview: null });
   persist();
 }
 
@@ -69,7 +69,7 @@ export function jumpTo(index) {
   const { history } = getState();
   if (index < 0 || index >= history.length) return;
   clearSelection();
-  setState({ historyIndex: index, activeImage: history[index].image });
+  setState({ historyIndex: index, activeImage: history[index].image, draftPreview: null });
   persist();
 }
 

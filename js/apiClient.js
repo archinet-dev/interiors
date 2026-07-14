@@ -87,8 +87,12 @@ If this change involves furniture, decor, paint, or materials, search the web (i
 function extractGrounding(response) {
   const gm = response?.candidates?.[0]?.groundingMetadata || response?.candidates?.[0]?.grounding_metadata;
   if (!gm) return null;
+  // Chunks may come from web search OR image search — the latter carries image/source URIs.
   const chunks = (gm.groundingChunks || gm.grounding_chunks || [])
-    .map((c) => ({ title: c.web?.title || "", uri: c.web?.uri || "" }))
+    .map((c) => {
+      const src = c.web || c.image || c.retrievedContext || c.retrieved_context || {};
+      return { title: src.title || "", uri: src.uri || src.sourceUri || src.source_uri || src.imageUri || src.image_uri || "" };
+    })
     .filter((c) => c.uri);
   const sep = gm.searchEntryPoint || gm.search_entry_point;
   return {

@@ -25,18 +25,27 @@ function render(state) {
     return;
   }
   if (entry.id === renderedEntryId) return;
-  renderedEntryId = entry.id;
 
   // Source links — built via DOM APIs (titles/uris are API data; still never innerHTML'd).
+  // Each chunk is fenced: one malformed URI must not abort the shared subscribe loop or leave
+  // the rail half-built (renderedEntryId is only stamped after a successful full render).
   linksBox.textContent = "";
   for (const c of g.chunks.slice(0, 6)) {
-    const a = document.createElement("a");
-    a.className = "rm-link";
-    a.href = c.uri;
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.textContent = c.title || new URL(c.uri).hostname;
-    linksBox.append(a);
+    try {
+      const a = document.createElement("a");
+      a.className = "rm-link";
+      a.href = c.uri;
+      a.target = "_blank";
+      a.rel = "noopener";
+      let label = c.title;
+      if (!label) {
+        try { label = new URL(c.uri).hostname; } catch { label = c.uri; }
+      }
+      a.textContent = label;
+      linksBox.append(a);
+    } catch (err) {
+      console.warn("[realMatches] skipped malformed source chunk:", err?.message ?? err);
+    }
   }
 
   // Google's required search-suggestions widget, verbatim (see ToS note above).
@@ -45,6 +54,7 @@ function render(state) {
     a.target = "_blank";
     a.rel = "noopener";
   }
+  renderedEntryId = entry.id;
 }
 
 subscribe(render);

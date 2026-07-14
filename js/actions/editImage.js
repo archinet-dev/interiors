@@ -44,7 +44,11 @@ export async function runEdit(prompt) {
   if (target) {
     apiEditImage(activeImage, prompt, MODELS.lite, references, target)
       .then(({ image }) => {
-        if (!editSettled && getState().editingInFlight) setState({ draftPreview: image });
+        // Show the draft only if THIS edit is still running AND the user hasn't navigated
+        // history away from the image the draft was rendered from.
+        if (!editSettled && getState().editingInFlight && getState().activeImage === activeImage) {
+          setState({ draftPreview: image });
+        }
       })
       .catch((err) => console.warn("[editImage] draft render failed (non-fatal):", err?.message ?? err));
   }

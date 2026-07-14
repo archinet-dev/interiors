@@ -116,5 +116,9 @@ surface.addEventListener("dblclick", () => {
 // swaps. History navigation also clears eagerly in actions/history.js — this is the backstop.)
 img.addEventListener("load", () => {
   if (pendingTap) { clearTimeout(pendingTap); pendingTap = 0; }
+  // During an edit the swap is the Lite DRAFT previewing in place (Pass 9) — the selection
+  // still describes the object being edited, and runEdit owns its lifecycle. Only clear for
+  // real navigation swaps (undo/redo/filmstrip also clear eagerly in actions/history.js).
+  if (getState().editingInFlight) return;
   if (getState().selection) clearSelection();
 });
