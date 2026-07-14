@@ -147,8 +147,19 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
 - **Instant drafts:** targeted edits show a ~4 s `gemini-3.1-flash-lite-image` draft in place
   (with a "Draft — refining…" badge) while the full render finishes; drafts never enter history.
 
-**All nine passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
-it via function calling → tap any object (or name it) to edit exactly that, grounded in real products
+### Pass 10 — Walk-Around Scan ✅
+- **📷 Show the room:** during a voice session, a scan button streams the live camera to the
+  agent at 1 fps (≤768 px JPEG frames) in a 45 s burst — pan around and ask "what would you
+  change over here?"; verified with a forced-choice vision test ("that's an orange traffic cone
+  right there in the live view").
+- **Live model migration:** `gemini-3.1-flash-live-preview` (the documented successor) — the 2.5
+  native-audio model ignores realtime video; frames must go through the dedicated `video`
+  realtime field (the SDK's `media` maps to legacy `mediaChunks`, which is invisible).
+  Transcripts + the editImage tool bridge regression-tested on the new model.
+
+**All ten passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
+it via function calling → show it around with the live camera → tap any object (or name it) to edit
+exactly that, grounded in real products
 with sources shown → attach photos of specific items/materials to work into the design → review the
 persisted history (undo/redo/branch) → compare before/after → opt into Pro renders → export at any
 shape/size with generative expand → installable, themed, and accessible.
