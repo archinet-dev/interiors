@@ -90,9 +90,13 @@ Return a JSON array with EXACTLY ONE entry: {"label": <2-4 word name>, "box_2d":
   // truncates a long polygon — recover the first JSON array/object rather than failing the tap.
   let raw = (response?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "[]").trim();
   raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
-  const a0 = raw.indexOf("[");
-  const a1 = raw.lastIndexOf("]");
-  if (a0 >= 0 && a1 > a0) raw = raw.slice(a0, a1 + 1);
+  // Only slice out an array when the payload isn't already a top-level object — a bare
+  // {"label":…,"box_2d":[…]} would otherwise be cut at box_2d's brackets and lose its keys.
+  if (!raw.startsWith("{")) {
+    const a0 = raw.indexOf("[");
+    const a1 = raw.lastIndexOf("]");
+    if (a0 >= 0 && a1 > a0) raw = raw.slice(a0, a1 + 1);
+  }
   let parsed;
   try {
     parsed = JSON.parse(raw);

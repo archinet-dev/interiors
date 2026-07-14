@@ -70,8 +70,12 @@ render(getState());
 
 // --- tap → select ---
 let down = null; // { x, y, t, id }
+let pendingTap = 0; // timer deferring a tap past the double-click window (zoom gesture)
 
 surface.addEventListener("pointerdown", (e) => {
+  // A second press inside the double-click window means this is a zoom gesture, not a tap —
+  // cancel the deferred selection so no vision call fires.
+  if (pendingTap) { clearTimeout(pendingTap); pendingTap = 0; }
   if (e.isPrimary) down = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId };
 });
 
@@ -90,11 +94,18 @@ surface.addEventListener("pointerup", (e) => {
   const x = ((e.clientX - r.left) / r.width) * 1000;
   const y = ((e.clientY - r.top) / r.height) * 1000;
   if (x < 0 || x > 1000 || y < 0 || y > 1000) return;
-  selectAtPoint(y, x);
+  // Defer past the double-click window so the zoom gesture doesn't fire a selection lookup.
+  pendingTap = setTimeout(() => {
+    pendingTap = 0;
+    selectAtPoint(y, x);
+  }, 280);
 });
 
-// Double-click is the zoom-toggle gesture — treat it as "not a selection" and clear.
-surface.addEventListener("dblclick", () => clearSelection({ announce: true }));
+// Double-click is the zoom-toggle gesture — never a selection: cancel any deferred tap and clear.
+surface.addEventListener("dblclick", () => {
+  if (pendingTap) { clearTimeout(pendingTap); pendingTap = 0; }
+  clearSelection({ announce: true });
+});
 
 // A new photo or an edit swap invalidates the old outline's coordinates. (Programmatic clear —
 // runEdit already cleared targeted edits; this catches undo/redo/filmstrip swaps.)
