@@ -35,10 +35,12 @@ export function resetHistory(originalBlob) {
 }
 
 // Append a successful edit. Branches (drops forward history) if we're not at the end.
-export function recordEdit(prompt, imageBlob) {
+// `grounding` (Pass 9): { chunks, queries, renderedContent } | null — the real-world sources a
+// grounded edit referenced; persisted with the entry so the Real-matches rail survives reloads.
+export function recordEdit(prompt, imageBlob, grounding = null) {
   const { history, historyIndex } = getState();
   const kept = history.slice(0, historyIndex + 1); // truncate forward (branch)
-  const entry = { id: newId(), prompt, image: imageBlob, ts: Date.now() };
+  const entry = { id: newId(), prompt, image: imageBlob, ts: Date.now(), grounding };
   const next = [...kept, entry];
   setState({ history: next, historyIndex: next.length - 1, activeImage: imageBlob });
   persist();

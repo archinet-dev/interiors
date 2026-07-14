@@ -19,6 +19,7 @@ export const MODELS = {
   pro: "gemini-3-pro-image", // Nano Banana Pro — high-quality edit (Pass 4)
   vision: "gemini-3.5-flash", // detection/segmentation for tap-to-select (Pass 8) — the Gemini 3
   // image models do NOT support masks (per official docs), so locate calls route here.
+  lite: "gemini-3.1-flash-lite-image", // Nano Banana 2 Lite — ~4 s draft previews (Pass 9)
 };
 
 // Same-origin proxy base. The SDK appends /v1beta/models/... to this.
@@ -36,7 +37,12 @@ export const ai = new GoogleGenAI({
 // `references` (Pass 6) is an optional array of extra Blobs — photos of specific items,
 // furniture, or materials the user supplied. They are appended after the room image, with
 // framing text telling the model which image is the room and how to treat the rest.
-export async function editImage(blob, prompt, model = MODELS.flash, references = [], target = null) {
+// opts.grounded (Pass 9): ground the edit in Google Web + Image Search so changes reference REAL
+// products (only supported on MODELS.flash; silently skipped elsewhere). Returns
+// { image: Blob, grounding: { chunks:[{title,uri}], queries:[string], renderedContent } | null }.
+// `grounding.renderedContent` is Google's search-suggestions HTML — the ToS REQUIRES displaying
+// it whenever grounded results are shown (see components rendering it).
+export async function editImage(blob, prompt, model = MODELS.flash, references = [], target = null, opts = {}) {
   // Pass 8: when the user selected a specific object (tap or voice), scope the edit to it. The
   // image models take the region as prompt text on the same normalized 0-1000 grid the vision
   // model reports boxes in.
@@ -57,8 +63,39 @@ The first image is the current room. Each additional image is a reference photo 
     contents.push({ inlineData: { mimeType: ref.type || "image/jpeg", data: await blobToBase64(ref) } });
   }
 
-  const response = await ai.models.generateContent({ model, contents });
-  return firstImageFromResponse(response);
+  // Grounding is a Flash-only capability (Image Search grounding is exclusive to
+  // gemini-3.1-flash-image per the model cards) — live-verified shape 2026-07-14. Searching is
+  // model-discretionary, so grounded requests carry an explicit nudge; edits with nothing to
+  // shop for (e.g. "declutter") simply come back ungrounded and show no rail.
+  const grounded = Boolean(opts.grounded) && model === MODELS.flash;
+  if (grounded) {
+    contents[0] = {
+      text: `${contents[0].text}
+
+If this change involves furniture, decor, paint, or materials, search the web (including image search) for real, currently-sold products matching the request and base the change faithfully on one of them.`,
+    };
+  }
+  const request = { model, contents };
+  if (grounded) request.config = { tools: [{ googleSearch: { searchTypes: { webSearch: {}, imageSearch: {} } } }] };
+
+  const response = await ai.models.generateContent(request);
+  return { image: firstImageFromResponse(response), grounding: grounded ? extractGrounding(response) : null };
+}
+
+// Pull the display-worthy grounding facts out of a response: real-source links, the queries the
+// model ran, and the ToS-required search-suggestions HTML. Null when the model didn't ground.
+function extractGrounding(response) {
+  const gm = response?.candidates?.[0]?.groundingMetadata || response?.candidates?.[0]?.grounding_metadata;
+  if (!gm) return null;
+  const chunks = (gm.groundingChunks || gm.grounding_chunks || [])
+    .map((c) => ({ title: c.web?.title || "", uri: c.web?.uri || "" }))
+    .filter((c) => c.uri);
+  const sep = gm.searchEntryPoint || gm.search_entry_point;
+  return {
+    chunks,
+    queries: gm.webSearchQueries || gm.web_search_queries || [],
+    renderedContent: sep?.renderedContent || sep?.rendered_content || "",
+  };
 }
 
 // Locate a single object or region in the image (Pass 8 tap-to-select). Ask by tap point OR by

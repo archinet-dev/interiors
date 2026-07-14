@@ -138,11 +138,20 @@ and Bun's automatic `.env` loading — no Node, no npm packages.
   `gemini-3-pro-image`), live-verified; masks route to `gemini-3.5-flash` (Gemini 3 image models
   don't support them).
 
-**All eight passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
-it via function calling → tap any object (or name it) to edit exactly that → attach photos of specific
-items/materials to work into the design → review the persisted history (undo/redo/branch) → compare
-before/after → opt into Pro renders → export at any shape/size with generative expand → installable,
-themed, and accessible.
+### Pass 9 — Make It Real: Grounded Renders + Real Matches ✅
+- **Grounded edits:** Flash edits search Google Web + Image Search mid-render
+  (`googleSearch.searchTypes`) and base changes on real, currently-sold products. Default on;
+  Settings → "Real products" turns it off. Pro edits skip grounding (Flash-only capability).
+- **Real matches rail:** each grounded edit shows the sources it referenced and Google's required
+  search-suggestions widget under the photo; persisted with the history entry, survives reloads.
+- **Instant drafts:** targeted edits show a ~4 s `gemini-3.1-flash-lite-image` draft in place
+  (with a "Draft — refining…" badge) while the full render finishes; drafts never enter history.
+
+**All nine passes complete.** The app: capture/upload a room → talk to a live AI that sees it and edits
+it via function calling → tap any object (or name it) to edit exactly that, grounded in real products
+with sources shown → attach photos of specific items/materials to work into the design → review the
+persisted history (undo/redo/branch) → compare before/after → opt into Pro renders → export at any
+shape/size with generative expand → installable, themed, and accessible.
 
 ### Known manual-verification items
 Real camera capture, live mic/speaker audio, reduced-motion under OS emulation, and Lighthouse

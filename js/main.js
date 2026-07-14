@@ -20,6 +20,7 @@ import "./components/reference-tray.js";
 import "./settings.js";
 import "./export.js";
 import "./selectionOverlay.js";
+import "./realMatches.js";
 import "./theme.js";
 import "./toast.js";
 import "./pwa.js";
@@ -164,9 +165,15 @@ function render(state) {
 
   // Errors are surfaced as a non-blocking toast (see js/toast.js), not inline.
 
-  // Image swap — only when the active Blob actually changed (identity compare).
-  if (state.activeImage && state.activeImage !== renderedBlob) {
-    swapImage(state.activeImage);
+  // Draft preview badge (Pass 9): a fast Lite draft shows in place while the full render runs.
+  const showingDraft = Boolean(state.editingInFlight && state.draftPreview);
+  document.getElementById("draft-badge").hidden = !showingDraft;
+
+  // Image swap — only when the displayed Blob actually changed (identity compare). While a
+  // targeted edit renders, the Lite draft (if it has landed) previews in place of activeImage.
+  const displayBlob = showingDraft ? state.draftPreview : state.activeImage;
+  if (displayBlob && displayBlob !== renderedBlob) {
+    swapImage(displayBlob);
   } else if (!state.activeImage && renderedUrl) {
     // Photo cleared (retake) — release the rendered URL.
     URL.revokeObjectURL(renderedUrl);

@@ -57,6 +57,7 @@
         <div class="canvas-wrap">
           <img id="room-image" alt="The room being redesigned" />
           <svg id="selection-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <span id="draft-badge" class="draft-badge" hidden>Draft — refining…</span>
         </div>
       </figure>
 
@@ -81,6 +82,14 @@
 
       <!-- Suggestion chips (wireframe §K2): the compact "two ways in" — tap a quick edit or speak. -->
       <div class="chips" id="suggestions" hidden aria-label="Suggested edits"></div>
+
+      <!-- Real matches (Pass 9): the real-world sources a grounded edit referenced, plus Google's
+           required search-suggestions widget. Shown for the active history entry when grounded. -->
+      <section id="real-matches" class="real-matches" hidden aria-label="Real product matches for this edit">
+        <p class="rm-title">Real matches — this edit referenced these sources</p>
+        <div id="rm-links" class="rm-links"></div>
+        <div id="rm-suggestions" class="rm-suggestions"></div>
+      </section>
 
       <!-- Reference items tray (Pass 6): attach photos of furniture/decor/materials to use in the room. -->
       <reference-tray id="references" hidden></reference-tray>
@@ -109,6 +118,12 @@
         <label class="model-opt">
           <input type="radio" name="edit-model" value="pro" />
           <span><strong>Pro</strong> — highest quality, up to 4K, slower &amp; costlier.</span>
+        </label>
+        <h2 class="settings-title" style="margin-top: 14px;">Real products</h2>
+        <label class="model-opt">
+          <input type="checkbox" id="grounded-toggle" checked />
+          <span><strong>Ground edits in Google Search</strong> — changes reference real items from the
+          web, with sources shown under the photo (Flash edits).</span>
         </label>
       </div>
 

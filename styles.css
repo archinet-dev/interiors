@@ -28,6 +28,9 @@
   /* Tap-to-select (Pass 8): selection is a verb — it never shares a hue with the agent (blue). */
   --select: light-dark(oklch(0.55 0.13 165), oklch(0.78 0.13 165));
   --select-fill: light-dark(oklch(0.55 0.13 165 / 0.14), oklch(0.78 0.13 165 / 0.18));
+  /* Real matches (Pass 9): commerce is a noun — it never shares a hue with selection or agent. */
+  --real: light-dark(oklch(0.55 0.09 70), oklch(0.75 0.09 70));
+  --real-fill: light-dark(oklch(0.55 0.09 70 / 0.12), oklch(0.75 0.09 70 / 0.16));
 
   /* State */
   --bad: light-dark(oklch(0.55 0.17 25), oklch(0.7 0.17 25)); /* error */
@@ -168,6 +171,60 @@ body {
   .selection-shape { animation: select-ants 1.2s linear infinite; }
   @keyframes select-ants { to { stroke-dashoffset: -26; } }
 }
+
+/* Draft badge (Pass 9): shown over the photo while a Lite draft previews in place. */
+.draft-badge {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--select);
+  background: var(--frame);
+  border: 1px solid var(--select);
+  border-radius: 999px;
+  padding: 7px 11px;
+}
+
+/* Real matches rail (Pass 9). */
+.real-matches {
+  width: 100%;
+  background: var(--frame);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rm-title {
+  margin: 0;
+  font: 600 12px/1.4 var(--font-sans);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--real);
+}
+.rm-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.rm-link {
+  font: 500 12.5px/1 var(--font-sans);
+  color: var(--real);
+  background: var(--real-fill);
+  border: 1px solid var(--real);
+  border-radius: 999px;
+  padding: 7px 12px;
+  text-decoration: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rm-link:hover { filter: brightness(0.96); }
+.rm-suggestions { overflow-x: auto; }
 
 /* Selection status bar (Pass 8): hint → identifying → selected chip. */
 .selection-bar {

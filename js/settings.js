@@ -7,6 +7,7 @@
 import { getState, setState, subscribe } from "./state.js";
 
 const radios = document.querySelectorAll('input[name="edit-model"]');
+const groundedToggle = document.getElementById("grounded-toggle");
 
 // User picks a model → store it.
 for (const radio of radios) {
@@ -15,9 +16,13 @@ for (const radio of radios) {
   });
 }
 
-// Keep the radios reflecting state (e.g. on restore).
+// Real-products grounding (Pass 9) — mirror the checkbox into state.
+groundedToggle.addEventListener("change", () => setState({ groundedEdits: groundedToggle.checked }));
+
+// Keep the controls reflecting state (e.g. on restore).
 function sync(state) {
   for (const radio of radios) radio.checked = radio.value === state.editingModel;
+  groundedToggle.checked = state.groundedEdits;
 }
 subscribe(sync);
 sync(getState());
