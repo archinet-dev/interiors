@@ -5,7 +5,7 @@
 // + voiceTranscript; clicking the mic starts/stops the Live session via the voiceSession action.
 
 import { getState, subscribe } from "../state.js";
-import { startVoiceSession, stopVoiceSession } from "../actions/voiceSession.js";
+import { startVoiceSession, stopVoiceSession, startRoomScan, stopRoomScan } from "../actions/voiceSession.js";
 
 const STATUS_LABEL = {
   idle: "Tap to talk",
@@ -30,6 +30,17 @@ sheet.replaceSync(`
   }
   .mic[aria-pressed="true"] { background: var(--accent, #36c); color: #fff; }
   .mic:focus-visible { outline: 2px solid var(--accent, #36c); outline-offset: 2px; }
+  /* Walk-around scan (Pass 10): show the room to the agent, camera at 1 fps in a short burst. */
+  .scan {
+    margin-left: auto; flex: 0 0 auto;
+    font: 600 12px/1 var(--font-sans, system-ui);
+    color: var(--accent, #36c); background: var(--frame, #fff);
+    border: 1.5px solid var(--accent, #36c); border-radius: 20px;
+    padding: 9px 13px; cursor: pointer;
+  }
+  .scan[aria-pressed="true"] { background: var(--accent, #36c); color: #fff; }
+  .scan[hidden] { display: none; }
+  .scan:focus-visible { outline: 2px solid var(--accent, #36c); outline-offset: 2px; }
   .status { font: 600 13px/1.2 var(--font-sans, system-ui); color: var(--ink, #2c2c29); }
   .sub { font-size: 11px; color: var(--soft, #76766f); }
   /* Pulsing ring while listening (respects reduced motion below). */
@@ -62,6 +73,7 @@ class VoiceIndicator extends HTMLElement {
   #lastStatus = null;
   #lastVoiceActive = null;
   #onMicClick = null; // bound mic handler ref, so we can removeEventListener on disconnect
+  #onScanClick = null; // bound scan handler ref (Pass 10)
 
   constructor() {
     super();
@@ -75,11 +87,13 @@ class VoiceIndicator extends HTMLElement {
             <div class="status">Tap to talk</div>
             <div class="sub">Voice assistant — describe a change out loud.</div>
           </div>
+          <button class="scan" type="button" aria-pressed="false" hidden>📷 Show the room</button>
         </div>
         <div class="transcript" role="log" aria-live="polite"></div>
       </div>
     `;
     this.$mic = root.querySelector(".mic");
+    this.$scan = root.querySelector(".scan");
     this.$status = root.querySelector(".status");
     this.$transcript = root.querySelector(".transcript");
   }
@@ -93,12 +107,18 @@ class VoiceIndicator extends HTMLElement {
       else startVoiceSession();
     };
     this.$mic.addEventListener("click", this.#onMicClick);
+    this.#onScanClick ??= () => {
+      if (getState().scanActive) stopRoomScan();
+      else startRoomScan();
+    };
+    this.$scan.addEventListener("click", this.#onScanClick);
     this.#unsub = subscribe((s) => this.render(s));
     this.render(getState());
   }
 
   disconnectedCallback() {
     this.$mic.removeEventListener("click", this.#onMicClick); // mirror connectedCallback
+    this.$scan.removeEventListener("click", this.#onScanClick);
     this.#unsub?.();
   }
 
@@ -111,6 +131,11 @@ class VoiceIndicator extends HTMLElement {
       this.#lastStatus = state.voiceStatus;
       this.#lastVoiceActive = state.voiceActive;
     }
+
+    // Scan button (Pass 10): only offered during a live session; pressed while streaming.
+    this.$scan.hidden = !state.voiceActive;
+    this.$scan.setAttribute("aria-pressed", String(state.scanActive));
+    this.$scan.textContent = state.scanActive ? "📷 Stop showing" : "📷 Show the room";
 
     // Transcript — re-render only when it grew/changed.
     if (state.voiceTranscript.length !== this.#lastTranscriptLen) {
