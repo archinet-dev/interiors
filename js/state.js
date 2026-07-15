@@ -25,6 +25,8 @@ const INITIAL_STATE = {
   editingModel: "flash", // 'flash' | 'pro' — model selection (Pass 4)
   exportBusy: false, // true while an export render (expand/upscale) is running (Pass 7)
   selection: null, // { label, box:[ymin,xmin,ymax,xmax], polygon:[[y,x],...]|null, status:'locating'|'active' } (Pass 8)
+  groundedEdits: true, // ground Flash edits in Google Web+Image Search — "real products" (Pass 9)
+  draftPreview: null, // Blob — fast Lite draft shown while the full targeted render finishes (Pass 9)
   referenceImages: [], // [{ id, image: Blob, ts }] — item/material photos to use in edits (Pass 6)
   comparing: false, // true while the before/after view is shown (Pass 4)
   error: null, // string | null — last user-visible error
