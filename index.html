@@ -51,10 +51,20 @@
         <button id="settings-button" class="btn-secondary" type="button" popovertarget="settings-panel">⚙ Settings</button>
       </div>
 
-      <!-- The room view. Shown once a photo exists. -->
+      <!-- The room view. Shown once a photo exists. The wrapper carries the zoom/pan transform so
+           the tap-to-select outline (Pass 8) stays glued to the photo at any zoom. -->
       <figure class="image-card" id="image-view" hidden>
-        <img id="room-image" alt="The room being redesigned" />
+        <div class="canvas-wrap">
+          <img id="room-image" alt="The room being redesigned" />
+          <svg id="selection-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+        </div>
       </figure>
+
+      <!-- Tap-to-select status (Pass 8): hint by default; selected-object chip while active. -->
+      <div class="selection-bar" id="selection-bar" hidden>
+        <span id="selection-text" class="selection-text">Tap any object in the photo to edit just that</span>
+        <button id="selection-clear" class="selection-clear" type="button" aria-label="Clear selection" hidden>✕</button>
+      </div>
 
       <!-- Before/after comparison (Pass 4). Shown only while comparing. -->
       <before-after id="compare-view" hidden></before-after>

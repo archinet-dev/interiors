@@ -11,11 +11,14 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Verified-available preview model IDs (see docs/VERIFICATION_REPORT.md). Kept as constants so a
-// GA rename is a single edit in this file.
+// Verified-available model IDs (original verification in docs/VERIFICATION_REPORT.md; migrated to
+// the stable GA IDs in Pass 8 after live-verifying each on 2026-07-14 — the '-preview' suffixed
+// IDs were deprecated per the API changelog). Kept as constants so a rename is a single edit here.
 export const MODELS = {
-  flash: "gemini-3.1-flash-image-preview", // Nano Banana 2 — fast default edit
-  pro: "gemini-3-pro-image-preview", // Nano Banana Pro — high-quality edit (Pass 4)
+  flash: "gemini-3.1-flash-image", // Nano Banana 2 — fast default edit
+  pro: "gemini-3-pro-image", // Nano Banana Pro — high-quality edit (Pass 4)
+  vision: "gemini-3.5-flash", // detection/segmentation for tap-to-select (Pass 8) — the Gemini 3
+  // image models do NOT support masks (per official docs), so locate calls route here.
 };
 
 // Same-origin proxy base. The SDK appends /v1beta/models/... to this.
@@ -33,12 +36,18 @@ export const ai = new GoogleGenAI({
 // `references` (Pass 6) is an optional array of extra Blobs — photos of specific items,
 // furniture, or materials the user supplied. They are appended after the room image, with
 // framing text telling the model which image is the room and how to treat the rest.
-export async function editImage(blob, prompt, model = MODELS.flash, references = []) {
+export async function editImage(blob, prompt, model = MODELS.flash, references = [], target = null) {
+  // Pass 8: when the user selected a specific object (tap or voice), scope the edit to it. The
+  // image models take the region as prompt text on the same normalized 0-1000 grid the vision
+  // model reports boxes in.
+  const scoped = target
+    ? `Edit ONLY the ${target.label} located within the normalized bounding box [${target.box.join(", ")}] of the image (0-1000 scale, [ymin, xmin, ymax, xmax]). Apply the following instruction to that object/region alone and keep every other part of the image EXACTLY unchanged, including lighting and geometry: ${prompt}`
+    : prompt;
   const text = references.length
-    ? `${prompt}
+    ? `${scoped}
 
 The first image is the current room. Each additional image is a reference photo of a specific item, piece of furniture, or material (e.g. tile, wallpaper, fabric, decor) supplied by the user. When the instruction refers to such an item or material, reproduce it faithfully in the room at a realistic scale; otherwise ignore the reference images. Always return the edited ROOM image, never a reference image.`
-    : prompt;
+    : scoped;
 
   const contents = [
     { text },
@@ -50,6 +59,76 @@ The first image is the current room. Each additional image is a reference photo 
 
   const response = await ai.models.generateContent({ model, contents });
   return firstImageFromResponse(response);
+}
+
+// Locate a single object or region in the image (Pass 8 tap-to-select). Ask by tap point OR by
+// natural-language query ("the grey sofa", "the empty corner"). Returns
+//   { label, box: [ymin, xmin, ymax, xmax], polygon: [[y, x], ...] | null }   (all 0-1000)
+// or null when the model finds nothing. Routed to MODELS.vision — the Gemini 3 image models do
+// not support masks; gemini-3.5-flash does (live-verified 2026-07-14, ~2-3 s).
+export async function locateObject(blob, { point, query }) {
+  const ask = point
+    ? `A user tapped the image at the normalized point y=${point[0]}, x=${point[1]} (0-1000 scale). Identify the single distinct object or surface at exactly that point.`
+    : `Find the following in the image: ${query}. Identify the single best-matching object or region.`;
+  const text = `${ask}
+Return a JSON array with EXACTLY ONE entry: {"label": <2-4 word name>, "box_2d": [ymin, xmin, ymax, xmax] on a 0-1000 normalized scale, "polygon": the object's outline as 8-24 [y, x] vertices (0-1000 scale, in drawing order)}. If nothing identifiable is there, return [].`;
+
+  const response = await ai.models.generateContent({
+    model: MODELS.vision,
+    contents: [
+      { text },
+      { inlineData: { mimeType: blob.type || "image/jpeg", data: await blobToBase64(blob) } },
+    ],
+    config: {
+      responseMimeType: "application/json",
+      // Docs recommend minimal thinking for detection/segmentation workloads.
+      thinkingConfig: { thinkingLevel: "minimal" },
+    },
+  });
+
+  // The response is requested as JSON, but the model occasionally wraps it (fences, prose) or
+  // truncates a long polygon — recover the first JSON array/object rather than failing the tap.
+  let raw = (response?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "[]").trim();
+  raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+  // Only slice out an array when the payload isn't already a top-level object — a bare
+  // {"label":…,"box_2d":[…]} would otherwise be cut at box_2d's brackets and lose its keys.
+  if (!raw.startsWith("{")) {
+    const a0 = raw.indexOf("[");
+    const a1 = raw.lastIndexOf("]");
+    if (a0 >= 0 && a1 > a0) raw = raw.slice(a0, a1 + 1);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Salvage a truncated array by parsing just the first complete object inside it.
+    const o0 = raw.indexOf("{");
+    let depth = 0;
+    for (let i = o0; i >= 0 && i < raw.length; i++) {
+      if (raw[i] === "{") depth++;
+      else if (raw[i] === "}" && --depth === 0) {
+        try { parsed = [JSON.parse(raw.slice(o0, i + 1))]; } catch {}
+        break;
+      }
+    }
+    if (!parsed) return null; // treat as "nothing identifiable" — the action shows a friendly retry message
+  }
+  const entry = Array.isArray(parsed) ? parsed[0] : parsed;
+  if (!entry) return null;
+
+  const clamp = (n) => Math.max(0, Math.min(1000, Math.round(Number(n) || 0)));
+  const box = Array.isArray(entry.box_2d) && entry.box_2d.length === 4 ? entry.box_2d.map(clamp) : null;
+  if (!box || box[2] <= box[0] || box[3] <= box[1]) return null;
+
+  // Polygon is best-effort (model JSON is loosely shaped) — the box is the reliable fallback.
+  let polygon = null;
+  if (Array.isArray(entry.polygon)) {
+    const pts = entry.polygon
+      .filter((v) => Array.isArray(v) && v.length === 2)
+      .map(([y, x]) => [clamp(y), clamp(x)]);
+    if (pts.length >= 3) polygon = pts;
+  }
+  return { label: String(entry.label || "object").slice(0, 60), box, polygon };
 }
 
 // Aspect ratios the image models accept in imageConfig (live-verified 2026-07-13). Exports that

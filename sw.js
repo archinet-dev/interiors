@@ -7,7 +7,7 @@
 //    cache-first with runtime caching, so after one online visit the app loads offline too.
 //  - Network is still required for inference (edits/voice) — only the navigation shell works offline.
 
-const CACHE = "smv-shell-v6"; // bump to invalidate older shell caches when files/CDN change
+const CACHE = "smv-shell-v7"; // bump to invalidate older shell caches when files/CDN change
 
 const SHELL = [
   "/",
@@ -23,6 +23,8 @@ const SHELL = [
   "/js/actions/history.js",
   "/js/actions/exportImage.js",
   "/js/actions/references.js",
+  "/js/actions/select.js",
+  "/js/selectionOverlay.js",
   "/js/audio/audioIO.js",
   "/js/audio/recorder-worklet.js",
   "/js/components/camera-capture.js",

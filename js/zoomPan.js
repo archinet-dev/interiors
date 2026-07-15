@@ -9,7 +9,10 @@
 const MIN = 1;
 const MAX = 4;
 
-export function attachZoomPan(container, img) {
+// `target` receives the transform (Pass 8: the .canvas-wrap holding image + selection overlay,
+// so both move together); `img` is the <img> whose load event resets the zoom. Passing the same
+// element for both preserves the original behavior.
+export function attachZoomPan(container, target, img = target) {
   let scale = 1;
   let tx = 0;
   let ty = 0;
@@ -25,7 +28,7 @@ export function attachZoomPan(container, img) {
   let center = { x: 0, y: 0 }; // container center (screen coords) captured at gesture start
 
   const apply = () => {
-    img.style.transform = scale === 1 ? "" : `translate(${tx}px, ${ty}px) scale(${scale})`;
+    target.style.transform = scale === 1 ? "" : `translate(${tx}px, ${ty}px) scale(${scale})`;
     container.style.cursor = scale > 1 ? "grab" : "";
     // When zoomed, trap all touch gestures so one-finger drag pans (not scrolls). At 1×, use pan-y:
     // the page still scrolls vertically with one finger, but a two-finger pinch is delivered to our

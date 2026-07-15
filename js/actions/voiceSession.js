@@ -10,6 +10,7 @@ import { Modality, Type } from "@google/genai";
 import { ai } from "../apiClient.js"; // shared SDK instance — apiClient is the one chokepoint (H1)
 import { getState, setState } from "../state.js";
 import { runEdit } from "./editImage.js";
+import { selectByQuery } from "./select.js";
 import { startMicCapture, PcmPlayer } from "../audio/audioIO.js";
 
 // Native-audio Live model (verified available — see docs/VERIFICATION_REPORT.md), held as a constant.
@@ -20,6 +21,8 @@ const SYSTEM_INSTRUCTION = `You are a friendly, concise interior-design assistan
 When the user asks for a change to the room, call the editImage tool with a CONCRETE, specific prompt that names the subject and the change — e.g. "replace the grey sofa with a tan leather sofa", "paint the walls sage green", "add a large potted fiddle-leaf fig in the empty corner". Preserve the room's geometry, perspective, and lighting. Do not call the tool for general chit-chat or questions.
 
 The user may also attach reference photos of specific items — furniture, decor, tiles, wallpaper, or other materials — that they want in the room. You will be shown each one. Attached reference photos are automatically included with every editImage call, so when the user asks to use one, call editImage with a prompt that explicitly refers to it and says where to put or apply it — e.g. "add the armchair from the reference photo next to the window", "retile the floor with the tile shown in the reference photo".
+
+The user can also TAP an object in the photo to select it; you will be told when they do. While something is selected, edit requests apply to that object only. Independently, when the user's request clearly targets ONE object or surface ("make the sofa green", "just this wall"), pass the tool's optional "target" argument with a short name for it — the app will locate it precisely, outline it for the user, and scope the edit to it. Leave "target" out for whole-room changes.
 
 After an edit completes you will receive the updated photo; describe what changed in ONE short spoken sentence. Keep all spoken replies brief and natural.`;
 
@@ -32,6 +35,11 @@ const editImageTool = {
       prompt: {
         type: Type.STRING,
         description: "A concrete edit naming the subject and the change, grounded in the photo.",
+      },
+      target: {
+        type: Type.STRING,
+        description:
+          "Optional. When the change is meant for ONE specific object or surface, its short name (e.g. 'the grey sofa', 'the right wall'). Omit for whole-room edits.",
       },
     },
     required: ["prompt"],
@@ -185,6 +193,24 @@ async function sendReferenceTo(target, ref) {
   }
 }
 
+// Tell the agent about tap-selection changes (Pass 8). No-ops when no session is open.
+export function announceSelection(label) {
+  const target = session;
+  if (!target) return;
+  target.sendClientContent({
+    turns: [{ role: "user", parts: [{ text: `(The user tapped the photo and selected: ${label}. Treat edit requests as targeting it unless they clearly say otherwise.)` }] }],
+    turnComplete: false, // context only — don't force the agent to respond
+  });
+}
+export function announceSelectionCleared() {
+  const target = session;
+  if (!target) return;
+  target.sendClientContent({
+    turns: [{ role: "user", parts: [{ text: "(The user cleared the photo selection — edits apply to the whole room again.)" }] }],
+    turnComplete: false,
+  });
+}
+
 // Send a text turn (used as a fallback and for automated testing of the tool-call bridge).
 export function sendUserText(text) {
   if (!session) return;
@@ -225,6 +251,16 @@ async function onLiveMessage(msg) {
   if (msg.serverContent?.turnComplete && getState().voiceActive) setState({ voiceStatus: "listening" });
 }
 
+// Wait for an in-flight tap lookup ('locating') to settle so the agent's target wording never
+// cancels a selection the user is actively making. Bounded — a hung lookup can't stall edits.
+async function settleSelection(maxMs = 6000) {
+  const t0 = Date.now();
+  while (getState().selection?.status === "locating" && Date.now() - t0 < maxMs) {
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return getState().selection;
+}
+
 // Drain the tool-call queue one editImage at a time. The handlingTool flag makes this a singleton
 // loop: concurrent onmessage callbacks just append to the queue and let the running drain pick them
 // up. Every call — including ones queued mid-edit — gets a sendToolResponse so no id is dropped.
@@ -243,7 +279,38 @@ async function drainToolCalls() {
         continue;
       }
       const prompt = fc.args?.prompt || "";
-      appendTranscript("tool", `editImage("${prompt}")`);
+      const targetWords = fc.args?.target;
+      appendTranscript("tool", targetWords ? `editImage("${prompt}", target: "${targetWords}")` : `editImage("${prompt}")`);
+      // Pass 8: a user's explicit tap selection always wins over the agent's wording — including
+      // one still resolving: wait for an in-flight tap lookup to settle rather than cancel it.
+      let selection = await settleSelection();
+      if (selection?.status === "locating") {
+        // Still resolving after the bounded wait (hung lookup). Never stomp the user's tap —
+        // report busy instead of falling through to a query/unscoped edit.
+        session?.sendToolResponse({
+          functionResponses: [{
+            id: fc.id,
+            name: fc.name,
+            response: { result: "error", error: "the user is still selecting an object — nothing was changed; retry in a moment" },
+          }],
+        });
+        continue;
+      }
+      if (targetWords && selection?.status !== "active") {
+        selection = await selectByQuery(targetWords);
+        // The agent promised a single-object change. If we can't find that object, DON'T fall
+        // back to silently repainting the whole room — report the miss so the agent can react.
+        if (!selection) {
+          session?.sendToolResponse({
+            functionResponses: [{
+              id: fc.id,
+              name: fc.name,
+              response: { result: "error", error: `could not locate "${targetWords}" in the photo — nothing was changed. Ask the user to tap the object, or retry without a target for a whole-room edit.` },
+            }],
+          });
+          continue;
+        }
+      }
       const ok = await runEdit(prompt);
       session?.sendToolResponse({
         functionResponses: [
