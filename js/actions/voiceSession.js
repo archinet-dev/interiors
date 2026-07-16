@@ -25,7 +25,7 @@ When the user asks for a change to the room, call the editImage tool with a CONC
 
 The user may also attach reference photos of specific items — furniture, decor, tiles, wallpaper, or other materials — that they want in the room. You will be shown each one. Attached reference photos are automatically included with every editImage call, so when the user asks to use one, call editImage with a prompt that explicitly refers to it and says where to put or apply it — e.g. "add the armchair from the reference photo next to the window", "retile the floor with the tile shown in the reference photo".
 
-The user can also TAP an object in the photo to select it; you will be told when they do. While something is selected, edit requests apply to that object only. Independently, when the user's request clearly targets ONE object or surface ("make the sofa green", "just this wall"), pass the tool's optional "target" argument with a short name for it — the app will locate it precisely, outline it for the user, and scope the edit to it. Leave "target" out for whole-room changes.
+The user can also TAP an object in the photo to select it; a "(System note: …selected: X)" message tells you when they do. While that selection stands, the words "this", "that", "it", or "here" mean the selected object — NEVER ask what "this" refers to; just call editImage with a concrete prompt for that object (e.g. selected sofa + "turn this green" → editImage prompt "turn the sofa green"). The app scopes the edit to the selected object automatically. Independently, when no tap selection exists but the user's request clearly targets ONE object or surface ("make the sofa green", "just this wall"), pass the tool's optional "target" argument with a short name for it — the app will locate it precisely, outline it for the user, and scope the edit to it. Leave "target" out for whole-room changes.
 
 After an edit completes you will receive the updated photo; describe what changed in ONE short spoken sentence. Keep all spoken replies brief and natural.`;
 
@@ -320,20 +320,26 @@ function friendlyCameraError(err) {
 }
 
 // Tell the agent about tap-selection changes (Pass 8). No-ops when no session is open.
+//
+// Delivery matters here: sendClientContent with turnComplete:false never entered the model's
+// working context on gemini-3.1-flash-live-preview (observed in the field: after tapping the
+// couch, "turn this green" got "I don't know what 'this' refers to"). Realtime text input is
+// the documented interactive channel on this model and lands immediately without forcing a
+// spoken response turn.
 export function announceSelection(label) {
   const target = session;
   if (!target) return;
-  target.sendClientContent({
-    turns: [{ role: "user", parts: [{ text: `(The user tapped the photo and selected: ${label}. Treat edit requests as targeting it unless they clearly say otherwise.)` }] }],
-    turnComplete: false, // context only — don't force the agent to respond
+  target.sendRealtimeInput({
+    text: `(System note: the user just tapped the photo and selected: ${label}. Until this selection is cleared, words like "this", "that", "it", or "here" refer to the ${label}, and edit requests target it. The app scopes the edit automatically — just call editImage with a concrete prompt.)`,
   });
 }
 export function announceSelectionCleared() {
   const target = session;
   if (!target) return;
-  target.sendClientContent({
-    turns: [{ role: "user", parts: [{ text: "(The user cleared the photo selection — edits apply to the whole room again.)" }] }],
-    turnComplete: false,
+  // Clears can be automatic (an edit landed, undo/redo) — the wording stays neutral, and the
+  // agent is reminded how to target single objects now that the app no longer scopes for it.
+  target.sendRealtimeInput({
+    text: "(System note: the photo selection is no longer active — nothing is selected now. For the next single-object change, pass the editImage tool's 'target' argument; without it, edits apply to the whole room.)",
   });
 }
 
