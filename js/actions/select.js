@@ -28,13 +28,17 @@ export async function selectByQuery(query) {
   return runLocate({ query });
 }
 
-// options.announce: user-initiated clears (✕ / Esc / double-tap) tell the live agent; programmatic
-// clears (edit landed, image swapped) stay silent.
-export function clearSelection({ announce = false } = {}) {
+// EVERY clear that removed an active selection is announced to the live agent — including
+// programmatic ones (edit landed, undo/redo, image swap). The agent is told selections stand
+// "until cleared", so staying silent here would leave it resolving "this/it" to a stale object
+// and omitting `target` while the app no longer scopes anything (Bugbot/Codex, PR #15). The
+// `had` guard keeps back-to-back clears (e.g. runEdit then the image-load backstop) to one note.
+export function clearSelection({ announce = true } = {}) {
   generation++;
   const had = Boolean(getState().selection);
   if (had) setState({ selection: null });
   if (had && announce) {
+    // Dynamic import: voiceSession imports this module, so a static import would be a cycle.
     import("./voiceSession.js").then((m) => m.announceSelectionCleared()).catch(() => {});
   }
 }

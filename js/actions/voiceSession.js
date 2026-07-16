@@ -336,8 +336,10 @@ export function announceSelection(label) {
 export function announceSelectionCleared() {
   const target = session;
   if (!target) return;
+  // Clears can be automatic (an edit landed, undo/redo) — the wording stays neutral, and the
+  // agent is reminded how to target single objects now that the app no longer scopes for it.
   target.sendRealtimeInput({
-    text: "(System note: the user cleared the photo selection — edits apply to the whole room again.)",
+    text: "(System note: the photo selection is no longer active — nothing is selected now. For the next single-object change, pass the editImage tool's 'target' argument; without it, edits apply to the whole room.)",
   });
 }
 
