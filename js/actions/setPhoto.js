@@ -5,6 +5,7 @@
 
 import { setState } from "../state.js";
 import { resetHistory } from "./history.js";
+import { trackEvent } from "../analytics.js";
 
 // Adopt a captured/uploaded/sample Blob as both the original and the current image,
 // and seed the edit history with it as entry 0 (persisted to IndexedDB).
@@ -12,4 +13,8 @@ export function setPhoto(blob) {
   console.log("[setPhoto] new source photo:", blob.type, blob.size, "bytes");
   setState({ sourceImage: blob, error: null });
   resetHistory(blob); // sets activeImage + history[0] + persists
+  trackEvent("photo_added", {
+    format: blob.type || "unknown",
+    size_mb: Math.round((blob.size / 1_000_000) * 10) / 10,
+  });
 }

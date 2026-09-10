@@ -8,6 +8,7 @@
 
 import { getState, setState } from "../state.js";
 import { locateObject } from "../apiClient.js";
+import { trackEvent } from "../analytics.js";
 
 let generation = 0; // invalidates in-flight lookups when a newer tap/clear lands
 
@@ -62,6 +63,7 @@ async function runLocate(what) {
     }
     const selection = { status: "active", ...found };
     setState({ selection });
+    trackEvent("object_selected", { method: what.point ? "tap" : "voice" });
     return selection;
   } catch (err) {
     console.error("[select] locate failed:", err);

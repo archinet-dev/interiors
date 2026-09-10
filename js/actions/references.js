@@ -10,6 +10,7 @@ import { getState, setState } from "../state.js";
 import { runEdit } from "./editImage.js";
 import { persistSession } from "./history.js";
 import { sendReferenceContext } from "./voiceSession.js";
+import { trackEvent } from "../analytics.js";
 
 // Keep the payload sane: each reference is re-uploaded with every edit, so cap the count.
 export const MAX_REFERENCES = 4;
@@ -39,6 +40,7 @@ export function addReference(blob) {
   // The whole entry is passed so voiceSession can dedupe by id against its own startup send.
   sendReferenceContext(entry).catch((err) => console.warn("[references] voice context failed:", err));
   console.log("[references] attached:", blob.type, blob.size, "bytes");
+  trackEvent("reference_added", { reference_count: referenceImages.length + 1 });
   return true;
 }
 

@@ -10,6 +10,7 @@
 import { getState, setState } from "../state.js";
 import { MODELS, SUPPORTED_RATIOS, nearestSupportedRatio, renderForExport } from "../apiClient.js";
 import { recordEdit } from "./history.js";
+import { trackEvent } from "../analytics.js";
 
 function extFor(blob) {
   const t = blob?.type || "image/jpeg";
@@ -59,7 +60,15 @@ export async function shareImage() {
     setState({ error: "Nothing to share yet — add a photo first." });
     return;
   }
-  await deliverShare(activeImage);
+  const delivery = await deliverShare(activeImage);
+  if (delivery !== "cancelled") {
+    trackEvent("image_exported", {
+      delivery,
+      ratio: "original",
+      size: "standard",
+      kept_in_history: false,
+    });
+  }
 }
 
 // Decode a Blob's pixel dimensions (needed to snap "original" to a supported render ratio).
@@ -93,8 +102,14 @@ export async function exportImage({ ratio = "original", size = "standard", share
   // Original shape + standard size = the exact current image; no API call, no history change.
   const expand = ratio !== "original";
   if (!expand && size === "standard") {
-    if (share) return (await deliverShare(activeImage)) !== "cancelled";
+    if (share) {
+      const delivery = await deliverShare(activeImage);
+      if (delivery === "cancelled") return false;
+      trackEvent("image_exported", { delivery, ratio, size, kept_in_history: false });
+      return true;
+    }
     deliverDownload(activeImage);
+    trackEvent("image_exported", { delivery: "downloaded", ratio, size, kept_in_history: false });
     return true;
   }
 
@@ -129,7 +144,11 @@ export async function exportImage({ ratio = "original", size = "standard", share
 
     // Deliver FIRST — a cancelled share sheet means nothing was exported, so nothing should
     // enter history and the dialog stays open (the cached render makes a retry free).
-    if (share && (await deliverShare(blob)) === "cancelled") return false;
+    let delivery = "downloaded";
+    if (share) {
+      delivery = await deliverShare(blob);
+      if (delivery === "cancelled") return false;
+    }
     if (!share) deliverDownload(blob);
 
     if (keepInHistory) {
@@ -146,6 +165,12 @@ export async function exportImage({ ratio = "original", size = "standard", share
         setState({ error: "The room changed while rendering — the export was delivered but not added to history." });
       }
     }
+    trackEvent("image_exported", {
+      delivery,
+      ratio,
+      size,
+      kept_in_history: keepInHistory,
+    });
     return true;
   } catch (err) {
     console.error("[exportImage] export render failed:", err);

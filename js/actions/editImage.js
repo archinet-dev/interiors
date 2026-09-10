@@ -14,6 +14,7 @@ import { getState, setState } from "../state.js";
 import { editImage as apiEditImage, MODELS } from "../apiClient.js";
 import { recordEdit } from "./history.js";
 import { clearSelection } from "./select.js";
+import { trackEvent } from "../analytics.js";
 
 // Run an edit against the current activeImage with the given prompt.
 // Guards against concurrent edits and a missing image. Returns true on success, false otherwise
@@ -64,6 +65,12 @@ export async function runEdit(prompt) {
     // run (batched into one render) so there's never a frame with the flag off but the old image.
     recordEdit(target ? `${target.label} — ${prompt}` : prompt, image, grounding);
     setState({ editingInFlight: false, draftPreview: null });
+    trackEvent("edit_completed", {
+      model: editingModel,
+      targeted: Boolean(target),
+      grounded: Boolean(grounding),
+      reference_count: references.length,
+    });
     if (target) clearSelection(); // the object was changed; its outline no longer applies
     return true;
   } catch (err) {

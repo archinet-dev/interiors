@@ -12,6 +12,7 @@ import { getState, setState } from "../state.js";
 import { runEdit } from "./editImage.js";
 import { selectByQuery } from "./select.js";
 import { startMicCapture, PcmPlayer } from "../audio/audioIO.js";
+import { trackEvent } from "../analytics.js";
 
 // Live model. Migrated in Pass 10 from gemini-2.5-flash-native-audio-preview-12-2025 (the
 // official docs name this exact model-string swap) because the walk-around scan needs realtime
@@ -57,6 +58,7 @@ let handlingTool = false; // true while the queue drain loop is running (seriali
 let pendingToolCalls = []; // FIFO queue of functionCalls awaiting an editImage + tool response
 let startGeneration = 0; // bumped each startVoiceSession; lets a slow connect detect it was superseded
 let stopping = false; // re-entrancy guard so onerror/onclose → stopVoiceSession can't recurse
+let voiceStartedAt = 0;
 
 // Open the Live session and start streaming the mic. Idempotent.
 export async function startVoiceSession() {
@@ -137,6 +139,10 @@ export async function startVoiceSession() {
       if (session === live) session = null;
       return;
     }
+    voiceStartedAt = Date.now();
+    trackEvent("voice_session_started", {
+      reference_count: getState().referenceImages.length,
+    });
   } catch (err) {
     // Expected user conditions (denied/no mic) are warnings; anything else is a real error.
     const expected = ["NotAllowedError", "SecurityError", "NotFoundError"].includes(err?.name);
@@ -153,6 +159,7 @@ export async function stopVoiceSession() {
   stopping = true;
   // Invalidate any in-flight startVoiceSession so a late connect() resolves into a no-op.
   startGeneration++;
+  const durationSeconds = voiceStartedAt ? Math.round((Date.now() - voiceStartedAt) / 1000) : 0;
   try {
     stopRoomScan("session"); // camera burst can't outlive its session (Pass 10)
     try { mic?.stop(); } catch {}
@@ -164,6 +171,10 @@ export async function stopVoiceSession() {
     handlingTool = false;
     pendingToolCalls = [];
     setState({ voiceStatus: "idle", voiceActive: false });
+    if (voiceStartedAt) {
+      trackEvent("voice_session_ended", { duration_seconds: durationSeconds });
+      voiceStartedAt = 0;
+    }
   } finally {
     stopping = false;
   }
@@ -278,6 +289,7 @@ export async function startRoomScan() {
     }, SCAN_FRAME_MS);
 
     setState({ scanActive: true, error: null });
+    trackEvent("room_scan_started");
     return true;
   } catch (err) {
     // Whatever was acquired before the failure gets released — no orphaned camera light.
@@ -300,6 +312,7 @@ export function stopRoomScan(reason = "user") {
   const { target } = scan;
   scan = null;
   setState({ scanActive: false });
+  trackEvent("room_scan_ended", { reason, frames_sent: scanFramesSent });
   // Tell the agent the visual stream ended (context only) — unless the whole session is going away.
   if (reason !== "session" && target && target === session) {
     try {
